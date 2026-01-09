@@ -3973,6 +3973,7 @@ kern/subr_filter.c		standard
 kern/subr_gtaskqueue.c		standard
 kern/subr_hash.c		standard
 kern/subr_hints.c		standard
+kern/subr_hmp.c			optional hmp
 kern/subr_kdb.c			standard
 kern/subr_kobj.c		standard
 kern/subr_lock.c		standard

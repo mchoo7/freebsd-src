@@ -220,6 +220,15 @@ options 	SCHED_ULE
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+#####################################################################
+# HMP OPTIONS:
+#
+# HMP enables building of Heterogeneous MultiProcessor Kernel.
+# This depends on SMP and SCHED_ULE.
+
+# Mandatory:
+options		HMP			# Heterogeneous MultiProcessor Kernel
+
 # EARLY_AP_STARTUP releases the Application Processors earlier in the
 # kernel startup process (before devices are probed) rather than at the
 # end.  This is a temporary option for use during the transition from
