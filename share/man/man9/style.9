@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 28, 2025
+.Dd January 17, 2026
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -384,7 +384,11 @@ struct foo *foohead;			/* Head of global foo list. */
 .Ed
 .Pp
 Use
-.Xr queue 3
+.Xr list 3 ,
+.Xr slist 3 ,
+.Xr stailq 3 ,
+and
+.Xr tailq 3
 macros rather than rolling your own lists, whenever possible.
 Thus,
 the previous example would be better written:
@@ -1008,7 +1012,10 @@ Variables may be declared at any point within a function,
 not just at the start of blocks.
 .Pp
 Standard library containers should be used in preference to
-.Xr queue 3
+.Xr list 3 ,
+.Xr slist 3 ,
+.Xr stailq 3 ,
+.Xr tailq 3 ,
 or
 .Xr tree 3
 macros.

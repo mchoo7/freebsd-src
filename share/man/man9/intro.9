@@ -6,7 +6,7 @@
 .\" This manual page was written by Mitchell Horne <mhorne@FreeBSD.org> under
 .\" sponsorship from the FreeBSD Foundation.
 .\"
-.Dd January 30, 2024
+.Dd January 17, 2026
 .Dt INTRO 9
 .Os
 .Sh NAME
@@ -66,8 +66,14 @@ An SMP-safe general-purpose counter implementation.
 Hash map implementation.
 .It Xr nv 9
 Name/value pairs.
-.It Xr queue 3
-Singly-linked and doubly-linked lists, and queues.
+.It Xr slist 3
+Singly-linked lists.
+.It Xr list 3
+Doubly-linked lists.
+.It Xr stailq 3
+Singly-linked queues.
+.It Xr tailq 3
+Doubly-linked queues.
 .It Xr refcount 9
 An SMP-safe implementation of reference counts.
 .It Xr sbuf 9

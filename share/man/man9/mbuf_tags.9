@@ -18,7 +18,7 @@
 .\" MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
 .\" PURPOSE.
 .\"
-.Dd December 28, 2021
+.Dd January 17, 2026
 .Dt MBUF_TAGS 9
 .Os
 .Sh NAME
@@ -108,7 +108,7 @@ struct m_tag {
 The
 .Va m_tag_link
 field is used to link tags together (see
-.Xr queue 3
+.Xr slist 3
 for more details).
 The
 .Va m_tag_id , m_tag_len
@@ -275,7 +275,7 @@ The tag-manipulating code is contained in the file
 Inlined functions are defined in
 .In sys/mbuf.h .
 .Sh SEE ALSO
-.Xr queue 3 ,
+.Xr slist 3 ,
 .Xr mbuf 9
 .Sh HISTORY
 The packet tags first appeared in
