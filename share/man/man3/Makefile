@@ -347,7 +347,24 @@ MLINKS+=	stdarg.3 va_arg.3 \
 MLINKS+=	stdckdint.3 ckd_add.3 \
 		stdckdint.3 ckd_sub.3 \
 		stdckdint.3 ckd_mul.3
-MLINKS+=	tailq.3 TAILQ_CLASS_ENTRY.3 \
+MLINKS+=	tailq.3 tailq_concat \
+		tailq.3 tailq_empty \
+		tailq.3 tailq_empty_atomic \
+		tailq.3 tailq_first \
+		tailq.3 tailq_init \
+		tailq.3 tailq_insert_after \
+		tailq.3 tailq_insert_before \
+		tailq.3 tailq_insert_head \
+		tailq.3 tailq_insert_tail \
+		tailq.3 tailq_last \
+		tailq.3 tailq_next \
+		tailq.3 tailq_prev \
+		tailq.3 tailq_remove \
+		tailq.3 tailq_remove_head \
+		tailq.3 tailq_replace \
+		tailq.3 tailq_split_after \
+		tailq.3 tailq_swap \
+		tailq.3 TAILQ_CLASS_ENTRY.3 \
 		tailq.3 TAILQ_CLASS_HEAD.3 \
 		tailq.3 TAILQ_CONCAT.3 \
 		tailq.3 TAILQ_EMPTY.3 \

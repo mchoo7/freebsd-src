@@ -1,5 +1,6 @@
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2026 The FreeBSD Foundation. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,10 +26,34 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 17, 2026
+.Dd January 18, 2026
 .Dt TAILQ 3
 .Os
 .Sh NAME
+.Nm tailq_concat ,
+.Nm tailq_empty ,
+.Nm tailq_empty_atomic ,
+.Nm tailq_first ,
+.Nm tailq_foreach ,
+.Nm tailq_foreach_from ,
+.Nm tailq_foreach_from_safe ,
+.Nm tailq_foreach_reverse ,
+.Nm tailq_foreach_reverse_from ,
+.Nm tailq_foreach_reverse_from_safe ,
+.Nm tailq_foreach_reverse_safe ,
+.Nm tailq_foreach_safe ,
+.Nm tailq_init ,
+.Nm tailq_insert_after ,
+.Nm tailq_insert_before ,
+.Nm tailq_insert_head ,
+.Nm tailq_insert_tail ,
+.Nm tailq_last ,
+.Nm tailq_next ,
+.Nm tailq_prev ,
+.Nm tailq_remove ,
+.Nm tailq_replace ,
+.Nm tailq_split_after ,
+.Nm tailq_swap ,
 .Nm TAILQ_CLASS_ENTRY ,
 .Nm TAILQ_CLASS_HEAD ,
 .Nm TAILQ_CONCAT ,
@@ -58,8 +83,51 @@
 .Nm TAILQ_REPLACE ,
 .Nm TAILQ_SPLIT_AFTER ,
 .Nm TAILQ_SWAP
-.Nd implementations of tail queues
+.Nd doubly-linked tail queue implementation
 .Sh SYNOPSIS
+.In sys/tailq.h
+.\"
+.Ft void
+.Fn tailq_concat "struct tailq *queue1" "struct tailq *queue2"
+.Ft bool
+.Fn tailq_empty "const struct tailq *queue"
+.Ft bool
+.Fn tailq_empty_atomic "const struct tailq *queue"
+.Ft "struct tailq_node *"
+.Fn tailq_foreach "struct tailq_node *var" "const struct tailq *queue"
+.Fn tailq_foreach_from "struct tailq_node *var" "const struct tailq *queue"
+.Fn tailq_foreach_from_safe "struct tailq_node *var" "const struct tailq *queue" "struct tailq_node *tvar"
+.Fn tailq_foreach_reverse "struct tailq_node *var" "const struct tailq *queue"
+.Fn tailq_foreach_reverse_from "struct tailq_node *var" "const struct tailq *queue"
+.Fn tailq_foreach_reverse_from_safe "struct tailq_node *var" "const struct tailq *queue" "struct tailq_node *tvar"
+.Fn tailq_foreach_reverse_safe "struct tailq_node *var" "const struct tailq *queue" "struct tailq_node *tvar"
+.Fn tailq_foreach_safe "struct tailq_node *var" "const struct tailq *queue" "struct tailq_node *tvar"
+.Fn tailq_first "const struct tailq *queue"
+.Ft void
+.Fn tailq_init "struct tailq *queue"
+.Ft void
+.Fn tailq_insert_after "struct tailq *queue" "struct tailq_node *qnode" "struct tailq_node *node"
+.Ft void
+.Fn tailq_insert_before "struct tailq_node *qnode" "struct tailq_node *node"
+.Ft void
+.Fn tailq_insert_head "struct tailq *queue" "struct tailq_node *node"
+.Ft void
+.Fn tailq_insert_tail "struct tailq *queue" "struct tailq_node *node"
+.Ft "struct tailq_node *"
+.Fn tailq_last "const struct tailq *queue"
+.Ft "struct tailq_node *"
+.Fn tailq_next "const struct tailq_node *node"
+.Ft "struct tailq_node *"
+.Fn tailq_prev "const struct tailq_node *node" "const struct tailq *queue"
+.Ft void
+.Fn tailq_remove "struct tailq *queue" "struct tailq_node *node"
+.Ft void
+.Fn tailq_replace "struct tailq *queue" "struct tailq_node *node" "struct tailq_node *node2"
+.Ft void
+.Fn tailq_split_after "struct tailq *queue" "struct tailq_node *node" "struct tailq *rest"
+.Ft void
+.Fn tailq_swap "struct tailq *queue1" "struct tailq *queue2"
+.\"
 .In sys/queue.h
 .\"
 .Fn TAILQ_CLASS_ENTRY "CLASSTYPE"
@@ -93,40 +161,263 @@
 .Fn TAILQ_SWAP "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TYPE" "TAILQ_ENTRY NAME"
 .\"
 .Sh DESCRIPTION
-These macros define and operate on doubly-linked tail queues which
-can be used in both C and C++ source code.
-Tail queues support the following functionality:
+Tail queues are doubly-linked lists with the ability to efficiently
+add elements at both the head and tail.
+The elements are doubly linked so that an arbitrary element can be
+removed without traversing the tail queue, and bidirectional traversal is possible.
+They are the most feature-rich of the queue implementations.
+Tail queues support the following operations:
 .Bl -enum -compact -offset indent
 .It
-Insertion of a new entry at the head of the list.
+Insertion of a new entry at the head of the queue.
 .It
-Insertion of a new entry after any element in the list.
+Insertion of a new entry at the tail of the queue.
 .It
-O(1) removal of an entry from the head of the list.
+Insertion of a new entry after any element in the queue.
 .It
-Forward traversal through the list.
+Insertion of a new entry before any element in the queue.
 .It
-Splitting a list in two after any element in the list.
+O(1) removal of any entry in the queue.
 .It
-Swapping the contents of two lists.
+Forward and backward traversal through the queue.
 .It
-Entries can be added at the end of a list.
+O(1) concatenation of two queues.
 .It
-They may be traversed backwards, from tail to head.
+Splitting a queue in two after any element in the queue.
 .It
-They may be concatenated.
+Swapping the contents of two queues.
 .El
 However:
 .Bl -enum -compact -offset indent
 .It
-All list insertions and removals must specify the head of the list.
+All queue insertions and removals must specify the head of the queue.
 .It
 Each head entry requires two pointers rather than one.
+.It
+Each element requires two pointers rather than one.
 .It
 Code size is about 15% greater and operations run about 20% slower
 than singly-linked lists.
 .El
 .Pp
+The
+.Nm tailq
+implementation provides both a modern function-based API (recommended)
+and a traditional macro-based API for compatibility.
+The function-based API is recommended for new code as it provides:
+.Bl -bullet
+.It
+Type safety without requiring type parameters
+.It
+Better debugger support
+.It
+Simpler function signatures
+.It
+Compatible with both C and C++
+.El
+.Ss Function-Based API
+The function-based API uses standard structure types
+.Vt struct tailq
+and
+.Vt struct tailq_node
+defined in
+.In sys/tailq.h .
+User-defined structures should embed
+.Vt struct tailq_node
+and use
+.Fa containerof
+macro to convert node pointers to structure pointers.
+.Pp
+.Fn tailq_concat
+concatenates the tail queue headed by
+.Fa queue2
+onto the end of the one headed by
+.Fa queue1
+removing all entries from the former.
+.Pp
+.Fn tailq_empty
+evaluates to true if there are no items on the tail queue.
+.Fn tailq_empty_atomic
+has the same behavior, but can be safely used in contexts where it is
+possible that a different thread is concurrently updating the queue.
+.Pp
+.Fn tailq_first
+returns the first item on the tail queue or NULL if the tail queue
+is empty.
+.Pp
+.Fn tailq_foreach
+traverses the tail queue referenced by
+.Fa queue
+in the forward direction, assigning each node in turn to
+.Fa var .
+.Pp
+.Fn tailq_foreach_from
+behaves identically to
+.Fn tailq_foreach
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the loop at
+.Fa var
+instead of the first node in the tail queue referenced by
+.Fa queue .
+.Pp
+.Fn tailq_foreach_safe
+traverses the tail queue referenced by
+.Fa queue
+in the forward direction, assigning each node in turn to
+.Fa var .
+However, unlike
+.Fn tailq_foreach
+here it is permitted to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
+.Pp
+.Fn tailq_foreach_from_safe
+behaves identically to
+.Fn tailq_foreach_safe
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the loop at
+.Fa var
+instead of the first node in the tail queue referenced by
+.Fa queue .
+.Pp
+.Fn tailq_foreach_reverse
+traverses the tail queue referenced by
+.Fa queue
+in the reverse direction, assigning each node in turn to
+.Fa var .
+.Pp
+.Fn tailq_foreach_reverse_from
+behaves identically to
+.Fn tailq_foreach_reverse
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the reverse loop at
+.Fa var
+instead of the last node in the tail queue referenced by
+.Fa queue .
+.Pp
+.Fn tailq_foreach_reverse_safe
+traverses the tail queue referenced by
+.Fa queue
+in the reverse direction, assigning each node in turn to
+.Fa var .
+However, unlike
+.Fn tailq_foreach_reverse
+here it is permitted to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
+.Pp
+.Fn tailq_foreach_reverse_from_safe
+behaves identically to
+.Fn tailq_foreach_reverse_safe
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the reverse loop at
+.Fa var
+instead of the last node in the tail queue referenced by
+.Fa queue .
+.Pp
+.Fn tailq_init
+initializes the tail queue referenced by
+.Fa queue .
+.Pp
+.Fn tailq_insert_head
+inserts the new element
+.Fa node
+at the head of the tail queue.
+.Pp
+.Fn tailq_insert_tail
+inserts the new element
+.Fa node
+at the end of the tail queue.
+.Pp
+.Fn tailq_insert_after
+inserts the new element
+.Fa node
+after the element
+.Fa qnode .
+.Pp
+.Fn tailq_insert_before
+inserts the new element
+.Fa node
+before the element
+.Fa qnode .
+.Pp
+.Fn tailq_last
+returns the last item on the tail queue.
+If the tail queue is empty the return value is
+.Dv NULL .
+.Pp
+.Fn tailq_next
+returns the next item on the tail queue, or NULL if this item is the last.
+.Pp
+.Fn tailq_prev
+returns the previous item on the tail queue, or NULL if this item
+is the first.
+.Pp
+.Fn tailq_remove
+removes the element
+.Fa node
+from the tail queue.
+.Pp
+.Fn tailq_replace
+replaces the element
+.Fa node
+with
+.Fa node2
+in the tail queue.
+The element
+.Fa node2
+must not already be on a queue.
+.Pp
+.Fn tailq_split_after
+splits the tail queue referenced by
+.Fa queue ,
+making
+.Fa rest
+reference the tail queue formed by elements after
+.Fa node
+in
+.Fa queue .
+.Pp
+.Fn tailq_swap
+swaps the contents of
+.Fa queue1
+and
+.Fa queue2 .
+.Ss Converting Between Node and Structure Pointers
+Since the function-based API operates on node pointers
+.Pf ( Vt struct tailq_node ) ,
+user code needs to convert between node pointers and pointers to the
+containing structure.
+This is typically done using a
+.Fn containerof
+macro:
+.Bd -literal -offset indent
+containerof(ptr, type, member)
+.Ed
+.Pp
+This macro takes a pointer to a structure member
+.Fa ptr ,
+the type of the containing structure
+.Fa type ,
+and the name of the member field
+.Fa member ,
+and returns a pointer to the containing structure.
+.Ss Macro-Based API
+The macro-based API is provided for compatibility with existing code.
 In the macro definitions,
 .Fa TYPE
 is the name of a user defined structure.
@@ -264,7 +555,7 @@ The macros
 .Nm TAILQ_FOREACH_SAFE
 and
 .Nm TAILQ_FOREACH_REVERSE_SAFE
-traverse the list referenced by
+traverse the queue referenced by
 .Fa head
 in the forward or reverse direction respectively,
 assigning each element in turn to
@@ -384,8 +675,80 @@ swaps the contents of
 .Fa head1
 and
 .Fa head2 .
-.Sh EXAMPLE
+.Sh EXAMPLES
+.Ss Function-Based API Example
 .Bd -literal
+#include <sys/tailq.h>
+#include <stdlib.h>
+
+struct entry {
+	...
+	struct tailq_node node;	/* Tail queue. */
+	...
+} *n1, *n2, *n3, *n4;
+struct tailq queue;
+struct tailq_node *np, *np_temp;
+
+tailq_init(&queue);			/* Initialize the queue. */
+
+n1 = malloc(sizeof(struct entry));	/* Insert at the head. */
+tailq_insert_head(&queue, &n1->node);
+
+n2 = malloc(sizeof(struct entry));	/* Insert at the tail. */
+tailq_insert_tail(&queue, &n2->node);
+
+n3 = malloc(sizeof(struct entry));	/* Insert after. */
+tailq_insert_after(&queue, &n1->node, &n3->node);
+
+n4 = malloc(sizeof(struct entry));	/* Insert before. */
+tailq_insert_before(&n2->node, &n4->node);
+
+tailq_remove(&queue, &n2->node);	/* Deletion. */
+free(n2);
+					/* Replacement. */
+struct entry *n5 = malloc(sizeof(struct entry));
+tailq_replace(&queue, &n3->node, &n5->node);
+free(n3);
+					/* Forward traversal. */
+tailq_foreach(np, &queue) {
+	n1 = containerof(np, struct entry, node);
+	n1-> ...
+}
+					/* Safe forward traversal. */
+tailq_foreach_safe(np, &queue, np_temp) {
+ 	n1 = containerof(np, struct entry, node);
+	n1->do_stuff();
+	...
+	tailq_remove(&queue, np);
+	free(n1);
+}
+					/* Reverse traversal. */
+tailq_foreach_reverse(np, &queue) {
+	n1 = containerof(np, struct entry, node);
+	n1-> ...
+}
+					/* TailQ Deletion. */
+while (!tailq_empty(&queue)) {
+	np = tailq_first(&queue);
+	n1 = containerof(np, struct entry, node);
+	tailq_remove(&queue, &n1->node);
+	free(n1);
+}
+					/* Faster TailQ Deletion. */
+np = tailq_first(&queue);
+while (np != NULL) {
+	np_temp = tailq_next(np);
+	n1 = containerof(np, struct entry, node);
+	free(n1);
+	np = np_temp;
+}
+tailq_init(&queue);
+.Ed
+.Ss Macro-Based API Example
+.Bd -literal
+#include <sys/queue.h>
+#include <stdlib.h>
+
 TAILQ_HEAD(tailhead, entry) head =
     TAILQ_HEAD_INITIALIZER(head);
 struct tailhead *headp;			/* Tail queue head. */
@@ -508,5 +871,11 @@ option.
 .Sh HISTORY
 The
 .Nm TAILQ
-functions first appeared in
+macros first appeared in
 .Bx 4.4 .
+.Pp
+The function-based API was introduced in
+.Fx 15.1 .
+.Sh AUTHORS
+The function-based API was written by
+.An Minsoo Choo Aq Mt minsoochoo0122@proton.me .
