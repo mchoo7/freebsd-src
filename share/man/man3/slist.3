@@ -1,5 +1,6 @@
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2026 The FreeBSD Foundation. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,10 +26,28 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 17, 2026
+.Dd January 18, 2026
 .Dt SLIST 3
 .Os
 .Sh NAME
+.Nm slist_concat ,
+.Nm slist_empty ,
+.Nm slist_empty_atomic ,
+.Nm slist_first ,
+.Nm slist_foreach ,
+.Nm slist_foreach_from ,
+.Nm slist_foreach_from_safe ,
+.Nm slist_foreach_safe ,
+.Nm slist_init ,
+.Nm slist_insert_after ,
+.Nm slist_insert_head ,
+.Nm slist_next ,
+.Nm slist_remove ,
+.Nm slist_remove_after ,
+.Nm slist_remove_head ,
+.Nm slist_remove_prevptr ,
+.Nm slist_split_after ,
+.Nm slist_swap ,
 .Nm SLIST_CLASS_ENTRY ,
 .Nm SLIST_CLASS_HEAD ,
 .Nm SLIST_CONCAT ,
@@ -51,8 +70,43 @@
 .Nm SLIST_REMOVE_HEAD ,
 .Nm SLIST_SPLIT_AFTER ,
 .Nm SLIST_SWAP
-.Nd implementations of singly-linked lists
+.Nd singly-linked list implementation
 .Sh SYNOPSIS
+.In sys/slist.h
+.\"
+.Ft void
+.Fn slist_concat "struct slist *list1" "struct slist *list2"
+.Ft bool
+.Fn slist_empty "const struct slist *list"
+.Ft bool
+.Fn slist_empty_atomic "const struct slist *list"
+.Ft "struct slist_node *"
+.Fn slist_first "const struct slist *list"
+.Fn slist_foreach "struct slist_node *var" "const struct slist *list"
+.Fn slist_foreach_from "struct slist_node *var" "const struct slist *list"
+.Fn slist_foreach_from_safe "struct slist_node *var" "const struct slist *list" "struct slist_node *tvar"
+.Fn slist_foreach_safe "struct slist_node *var" "const struct slist *list" "struct slist_node *tvar"
+.Ft void
+.Fn slist_init "struct slist *list"
+.Ft void
+.Fn slist_insert_after "struct slist_node *slistnode" "struct slist_node *node"
+.Ft void
+.Fn slist_insert_head "struct slist *list" "struct slist_node *node"
+.Ft "struct slist_node *"
+.Fn slist_next "const struct slist_node *node"
+.Ft void
+.Fn slist_remove_after "struct slist_node *node"
+.Ft void
+.Fn slist_remove_head "struct slist *list"
+.Ft void
+.Fn slist_remove "struct slist *list" "struct slist_node *node"
+.Ft void
+.Fn slist_remove_prevptr "struct slist_node **prevp" "struct slist_node *node"
+.Ft void
+.Fn slist_split_after "struct slist *list" "struct slist_node *node" "struct slist *rest"
+.Ft void
+.Fn slist_swap "struct slist *list1" "struct slist *list2"
+.\"
 .In sys/queue.h
 .\"
 .Fn SLIST_CLASS_ENTRY "CLASSTYPE"
@@ -79,9 +133,11 @@
 .Fn SLIST_SWAP "SLIST_HEAD *head1" "SLIST_HEAD *head2" "TYPE"
 .\"
 .Sh DESCRIPTION
-These macros define and operate on singly-linked lists which
-can be used in both C and C++ source code.
-Singly-linked lists support the following functionality:
+Singly-linked lists are the simplest linked list data structure,
+supporting only forward traversal.
+They are ideal for applications with large datasets
+and few or no removals, or for implementing a LIFO queue.
+Singly-linked lists support the following operations:
 .Bl -enum -compact -offset indent
 .It
 Insertion of a new entry at the head of the list.
@@ -101,10 +157,170 @@ O(n) removal of any entry in the list.
 O(n) concatenation of two lists.
 .El
 .Pp
-Singly-linked lists are ideal for applications with large datasets
-and few or no removals,
-or for implementing a LIFO queue.
+The
+.Nm slist
+implementation provides both a modern function-based API (recommended)
+and a traditional macro-based API for compatibility.
+The function-based API is recommended for new code as it provides:
+.Bl -bullet -offset indent
+.It
+Type safety without requiring type parameters
+.It
+Better debugger support
+.It
+Simpler function signatures
+.It
+Compatible with both C and C++
+.El
+.Ss Function-Based API
+The function-based API uses standard structure types
+.Vt struct slist
+and
+.Vt struct slist_node
+defined in
+.In sys/slist.h .
+User-defined structures should embed
+.Vt struct slist_node
+and use
+.Fa containerof
+macro to convert node pointers to structure pointers.
 .Pp
+.Fn slist_concat
+concatenates the list headed by
+.Fa list2
+onto the end of the one headed by
+.Fa list1
+removing all entries from the former.
+Use of this function should be avoided as it traverses the entirety of the
+.Fa list1
+list.
+A singly-linked tail queue should be used if this operation is needed in
+high-usage code paths or to operate on long lists.
+.Pp
+.Fn slist_empty
+evaluates to true if there are no elements in the list.
+.Fn slist_empty_atomic
+has the same behavior, but can be safely used in contexts where it is
+possible that a different thread is concurrently updating the list.
+.Pp
+.Fn slist_first
+returns the first element in the list or NULL if the list is empty.
+.Pp
+.Fn slist_foreach
+traverses the list referenced by
+.Fa list
+in the forward direction, assigning each node in turn to
+.Fa var .
+.Pp
+.Fn slist_foreach_from
+behaves identically to
+.Fn slist_foreach
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the loop at
+.Fa var
+instead of the first node in the list referenced by
+.Fa list .
+.Pp
+.Fn slist_foreach_safe
+traverses the list referenced by
+.Fa list
+in the forward direction, assigning each node in turn to
+.Fa var .
+However, unlike
+.Fn slist_foreach
+here it is permitted to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
+.Pp
+.Fn slist_foreach_from_safe
+behaves identically to
+.Fn slist_foreach_safe
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the loop at
+.Fa var
+instead of the first node in the list referenced by
+.Fa list .
+.Pp
+.Fn slist_init
+initializes the list referenced by
+.Fa list .
+.Pp
+.Fn slist_insert_head
+inserts the new element
+.Fa node
+at the head of the list.
+.Pp
+.Fn slist_insert_after
+inserts the new element
+.Fa node
+after the element
+.Fa slistnode .
+.Pp
+.Fn slist_next
+returns the next element in the list.
+.Pp
+.Fn slist_remove_head
+removes the element from the head of the list.
+.Pp
+.Fn slist_remove_after
+removes the element after
+.Fa node
+from the list.
+Unlike
+.Fn slist_remove ,
+this function does not traverse the entire list.
+.Pp
+.Fn slist_remove
+removes the element
+.Fa node
+from the list.
+Use of this function should be avoided as it traverses the entire list.
+A doubly-linked list should be used if this operation is needed in
+high-usage code paths or to operate on long lists.
+.Pp
+.Fn slist_split_after
+splits the list referenced by
+.Fa list ,
+making
+.Fa rest
+reference the list formed by elements after
+.Fa node
+in
+.Fa list .
+.Pp
+.Fn slist_swap
+swaps the contents of
+.Fa list1
+and
+.Fa list2 .
+.Ss Converting Between Node and Structure Pointers
+Since the function-based API operates on node pointers
+.Pf ( Vt struct slist_node ) ,
+user code needs to convert between node pointers and pointers to the
+containing structure.
+This is typically done using a
+.Fn containerof
+macro:
+.Bd -literal -offset indent
+containerof(ptr, type, member)
+.Ed
+.Pp
+This macro takes a pointer to a structure member
+.Fa ptr ,
+the type of the containing structure
+.Fa type ,
+and the name of the member field
+.Fa member ,
+and returns a pointer to the containing structure.
+.Ss Macro-Based API
+The macro-based API is provided for compatibility with existing code.
 In the macro definitions,
 .Fa TYPE
 is the name of a user defined structure.
@@ -312,8 +528,61 @@ swaps the contents of
 .Fa head1
 and
 .Fa head2 .
-.Sh EXAMPLE
+.Sh EXAMPLES
+.Ss Function-Based API Example
 .Bd -literal
+#include <sys/slist.h>
+#include <stdlib.h>
+
+struct entry {
+	...
+	struct slist_node node;	/* Singly-linked List. */
+	...
+} *n1, *n2, *n3;
+struct slist list;
+struct slist_node *np, *np_temp;
+
+slist_init(&list);			/* Initialize the list. */
+
+n1 = malloc(sizeof(struct entry));	/* Insert at the head. */
+slist_insert_head(&list, &n1->node);
+
+n2 = malloc(sizeof(struct entry));	/* Insert after. */
+slist_insert_after(&n1->node, &n2->node);
+
+slist_remove(&list, &n2->node);	/* Deletion. */
+free(n2);
+
+np = slist_first(&list);		/* Deletion from the head. */
+slist_remove_head(&list);
+n3 = containerof(np, struct entry, node);
+free(n3);
+					/* Forward traversal. */
+slist_foreach(np, &list) {
+	n1 = containerof(np, struct entry, node);
+	n1-> ...
+}
+					/* Safe forward traversal. */
+slist_foreach_safe(np, &list, np_temp) {
+	n1 = containerof(np, struct entry, entries);
+	n1->do_stuff();
+	...
+	slist_remove(&list, np);
+	free(n1);
+}
+					/* List Deletion. */
+while (!slist_empty(&list)) {
+	np = slist_first(&list);
+	slist_remove_head(&list);
+	n1 = containerof(np, struct entry, entries);
+	free(n1);
+}
+.Ed
+.Ss Macro-Based API Example
+.Bd -literal
+#include <sys/queue.h>
+#include <stdlib.h>
+
 SLIST_HEAD(slisthead, entry) head =
     SLIST_HEAD_INITIALIZER(head);
 struct slisthead *headp;		/* Singly-linked List head. */
@@ -321,7 +590,7 @@ struct entry {
 	...
 	SLIST_ENTRY(entry) entries;	/* Singly-linked List. */
 	...
-} *n1, *n2, *n3, *np;
+} *n1, *n2, *n3, *np, *np_temp;
 
 SLIST_INIT(&head);			/* Initialize the list. */
 
@@ -445,5 +714,11 @@ option.
 .Sh HISTORY
 The
 .Nm SLIST
-functions first appeared in
+macros first appeared in
 .Bx 4.4 .
+.Pp
+The function-based API was introduced in
+.Fx 15.1 .
+.Sh AUTHORS
+The function-based API was written by
+.An Minsoo Choo Aq Mt minsoochoo0122@proton.me .

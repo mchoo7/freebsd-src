@@ -226,7 +226,21 @@ MLINKS+=	list.3 LIST_CLASS_ENTRY.3 \
 		list.3 LIST_REPLACE.3 \
 		list.3 LIST_SPLIT_AFTER.3 \
 		list.3 LIST_SWAP.3
-MLINKS+=	slist.3 SLIST_CLASS_ENTRY.3 \
+MLINKS+= slist.3 slist_concat \
+		slist.3 slist_empty \
+		slist.3 slist_empty_atomic \
+		slist.3 slist_first \
+		slist.3 slist_init \
+		slist.3 slist_insert_after \
+		slist.3 slist_insert_head \
+		slist.3 slist_next \
+		slist.3 slist_remove \
+		slist.3 slist_remove_after \
+		slist.3 slist_remove_head \
+		slist.3 slist_remove_prevptr \
+		slist.3 slist_split_after \
+		slist.3 slist_swap \
+		slist.3 SLIST_CLASS_ENTRY.3 \
 		slist.3 SLIST_CLASS_HEAD.3 \
 		slist.3 SLIST_EMPTY.3 \
 		slist.3 SLIST_EMPTY_ATOMIC.3 \
