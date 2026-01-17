@@ -1,5 +1,6 @@
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2026 The FreeBSD Foundation. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,10 +26,30 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 17, 2026
+.Dd January 18, 2026
 .Dt STAILQ 3
 .Os
 .Sh NAME
+.Nm stailq_concat ,
+.Nm stailq_empty ,
+.Nm stailq_empty_atomic ,
+.Nm stailq_first ,
+.Nm stailq_foreach ,
+.Nm stailq_foreach_from ,
+.Nm stailq_foreach_from_safe ,
+.Nm stailq_foreach_safe ,
+.Nm stailq_init ,
+.Nm stailq_insert_after ,
+.Nm stailq_insert_head ,
+.Nm stailq_insert_tail ,
+.Nm stailq_last ,
+.Nm stailq_next ,
+.Nm stailq_remove ,
+.Nm stailq_remove_after ,
+.Nm stailq_remove_head ,
+.Nm stailq_reverse ,
+.Nm stailq_split_after ,
+.Nm stailq_swap ,
 .Nm STAILQ_CLASS_ENTRY ,
 .Nm STAILQ_CLASS_HEAD ,
 .Nm STAILQ_CONCAT ,
@@ -54,8 +75,47 @@
 .Nm STAILQ_REVERSE ,
 .Nm STAILQ_SPLIT_AFTER ,
 .Nm STAILQ_SWAP
-.Nd implementations of singly-linked tail queues
+.Nd singly-linked tail queue implementation
 .Sh SYNOPSIS
+.In sys/stailq.h
+.\"
+.Ft void
+.Fn stailq_concat "struct stailq *queue1" "struct stailq *queue2"
+.Ft bool
+.Fn stailq_empty "const struct stailq *queue"
+.Ft bool
+.Fn stailq_empty_atomic "const struct stailq *queue"
+.Ft "struct stailq_node *"
+.Fn stailq_first "const struct stailq *queue"
+.Fn stailq_foreach "struct stailq_node *var" "const struct stailq *queue"
+.Fn stailq_foreach_from "struct stailq_node *var" "const struct stailq *queue"
+.Fn stailq_foreach_from_safe "struct stailq_node *var" "const struct stailq *queue" "struct stailq_node *tvar"
+.Fn stailq_foreach_safe "struct stailq_node *var" "const struct stailq *queue"
+.Ft void
+.Fn stailq_init "struct stailq *queue"
+.Ft void
+.Fn stailq_insert_after "struct stailq *queue" "struct stailq_node *qnode" "struct stailq_node *node"
+.Ft void
+.Fn stailq_insert_head "struct stailq *queue" "struct stailq_node *node"
+.Ft void
+.Fn stailq_insert_tail "struct stailq *queue" "struct stailq_node *node"
+.Ft "struct stailq_node *"
+.Fn stailq_last "struct stailq *queue"
+.Ft "struct stailq_node *"
+.Fn stailq_next "const struct stailq_node *node"
+.Ft void
+.Fn stailq_remove_after "struct stailq *queue" "struct stailq_node *node"
+.Ft void
+.Fn stailq_remove_head "struct stailq *queue"
+.Ft void
+.Fn stailq_remove "struct stailq *queue" "struct stailq_node *node"
+.Ft void
+.Fn stailq_reverse "struct stailq *queue"
+.Ft void
+.Fn stailq_split_after "struct stailq *queue" "struct stailq_node *node" "struct stailq *rest"
+.Ft void
+.Fn stailq_swap "struct stailq *queue1" "struct stailq *queue2"
+.\"
 .In sys/queue.h
 .\"
 .Fn STAILQ_CLASS_ENTRY "CLASSTYPE"
@@ -85,33 +145,37 @@
 .Fn STAILQ_SWAP "STAILQ_HEAD *head1" "STAILQ_HEAD *head2" "TYPE"
 .\"
 .Sh DESCRIPTION
-These macros define and operate on singly-linked tail queues which
-can be used in both C and C++ source code.
-Singly-linked queues support the following functionality:
+Singly-linked tail queues combine the benefits of singly-linked lists
+with the ability to efficiently add elements at the tail.
+They are ideal for applications with large datasets and
+few or no removals, or for implementing a FIFO queue.
+Singly-linked tail queues support the following operations:
 .Bl -enum -compact -offset indent
 .It
-Insertion of a new entry at the head of the list.
+Insertion of a new entry at the head of the queue.
 .It
-Insertion of a new entry after any element in the list.
+Insertion of a new entry at the tail of the queue.
 .It
-O(1) removal of an entry from the head of the list.
+Insertion of a new entry after any element in the queue.
 .It
-Forward traversal through the list.
+O(1) removal of an entry from the head of the queue.
 .It
-Splitting a list in two after any element in the list.
+O(n) removal of any entry in the queue.
 .It
-Swapping the contents of two lists.
+Forward traversal through the queue.
 .It
-Entries can be added at the end of a list.
+O(1) concatenation of two queues.
 .It
-O(n) removal of any entry in the list.
+Reversing the queue in place.
 .It
-They may be concatenated.
+Splitting a queue in two after any element in the queue.
+.It
+Swapping the contents of two queues.
 .El
 However:
 .Bl -enum -compact -offset indent
 .It
-All list insertions and removals must specify the head of the list.
+All queue insertions and removals must specify the head of the queue.
 .It
 Each head entry requires two pointers rather than one.
 .It
@@ -119,10 +183,182 @@ Code size is about 15% greater and operations run about 20% slower
 than singly-linked lists.
 .El
 .Pp
-Singly-linked tail queues are ideal for applications with large datasets and
-few or no removals,
-or for implementing a FIFO queue.
+The
+.Nm stailq
+implementation provides both a modern function-based API (recommended)
+and a traditional macro-based API for compatibility.
+The function-based API is recommended for new code as it provides:
+.Bl -bullet -offset indent
+.It
+Type safety without requiring type parameters
+.It
+Better debugger support
+.It
+Simpler function signatures
+.It
+Compatible with both C and C++
+.El
+.Ss Function-Based API
+The function-based API uses standard structure types
+.Vt struct stailq
+and
+.Vt struct stailq_node
+defined in
+.In sys/stailq.h .
+User-defined structures should embed
+.Vt struct stailq_node
+and use
+.Fa containerof
+macro to convert node pointers to structure pointers.
 .Pp
+.Fn stailq_concat
+concatenates the tail queue headed by
+.Fa queue2
+onto the end of the one headed by
+.Fa queue1
+removing all entries from the former.
+.Pp
+.Fn stailq_empty
+evaluates to true if there are no items on the tail queue.
+.Fn stailq_empty_atomic
+has the same behavior, but can be safely used in contexts where it is
+possible that a different thread is concurrently updating the queue.
+.Pp
+.Fn stailq_first
+returns the first item on the tail queue or NULL if the tail queue
+is empty.
+.Pp
+.Fn stailq_foreach
+traverses the tail queue referenced by
+.Fa queue
+in the forward direction, assigning each node in turn to
+.Fa var .
+.Pp
+.Fn stailq_foreach_from
+behaves identically to
+.Fn stailq_foreach
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the loop at
+.Fa var
+instead of the first node in the tail queue referenced by
+.Fa queue .
+.Pp
+.Fn stailq_foreach_safe
+traverses the tail queue referenced by
+.Fa queue
+in the forward direction, assigning each node in turn to
+.Fa var .
+However, unlike
+.Fn stailq_foreach
+here it is permitted to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
+.Pp
+.Fn stailq_foreach_from_safe
+behaves identically to
+.Fn stailq_foreach_safe
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the loop at
+.Fa var
+instead of the first node in the tail queue referenced by
+.Fa queue .
+.Pp
+.Fn stailq_init
+initializes the tail queue referenced by
+.Fa queue .
+.Pp
+.Fn stailq_insert_head
+inserts the new element
+.Fa node
+at the head of the tail queue.
+.Pp
+.Fn stailq_insert_tail
+inserts the new element
+.Fa node
+at the end of the tail queue.
+.Pp
+.Fn stailq_insert_after
+inserts the new element
+.Fa node
+after the element
+.Fa qnode .
+.Pp
+.Fn stailq_last
+returns the last item on the tail queue or NULL if the tail queue
+is empty.
+.Pp
+.Fn stailq_next
+returns the next item on the tail queue, or NULL if this item is the last.
+.Pp
+.Fn stailq_remove_head
+removes the element at the head of the tail queue.
+For optimum efficiency,
+elements being removed from the head of the tail queue should
+use this function explicitly rather than the generic
+.Fn stailq_remove .
+.Pp
+.Fn stailq_remove_after
+removes the element after
+.Fa node
+from the tail queue.
+Unlike
+.Fn stailq_remove ,
+this function does not traverse the entire tail queue.
+.Pp
+.Fn stailq_remove
+removes the element
+.Fa node
+from the tail queue.
+Use of this function should be avoided as it traverses the entire queue.
+A doubly-linked tail queue should be used if this operation is needed in
+high-usage code paths or to operate on long tail queues.
+.Pp
+.Fn stailq_reverse
+reverses the queue in place.
+.Pp
+.Fn stailq_split_after
+splits the tail queue referenced by
+.Fa queue ,
+making
+.Fa rest
+reference the tail queue formed by elements after
+.Fa node
+in
+.Fa queue .
+.Pp
+.Fn stailq_swap
+swaps the contents of
+.Fa queue1
+and
+.Fa queue2 .
+.Ss Converting Between Node and Structure Pointers
+Since the function-based API operates on node pointers
+.Pf ( Vt struct stailq_node ) ,
+user code needs to convert between node pointers and pointers to the
+containing structure.
+This is typically done using a
+.Fn containerof
+macro:
+.Bd -literal -offset indent
+containerof(ptr, type, member)
+.Ed
+.Pp
+This macro takes a pointer to a structure member
+.Fa ptr ,
+the type of the containing structure
+.Fa type ,
+and the name of the member field
+.Fa member ,
+and returns a pointer to the containing structure.
+.Ss Macro-Based API
+The macro-based API is provided for compatibility with existing code.
 In the macro definitions,
 .Fa TYPE
 is the name of a user defined structure.
@@ -316,7 +552,7 @@ The macro
 removes the element
 .Fa elm
 from the tail queue.
-Use of this macro should be avoided as it traverses the entire list.
+Use of this macro should be avoided as it traverses the entire queue.
 A doubly-linked tail queue should be used if this macro is needed in
 high-usage code paths or to operate on long tail queues.
 .Pp
@@ -341,8 +577,64 @@ swaps the contents of
 .Fa head1
 and
 .Fa head2 .
-.Sh EXAMPLE
+.Sh EXAMPLES
+.Ss Function-Based API Example
 .Bd -literal
+#include <sys/stailq.h>
+#include <stdlib.h>
+
+struct entry {
+	...
+	struct stailq_node node;	/* Tail queue. */
+	...
+} *n1, *n2, *n3;
+struct stailq queue;
+struct stailq_node *np, *np_temp;
+
+stailq_init(&queue);			/* Initialize the queue. */
+
+n1 = malloc(sizeof(struct entry));	/* Insert at the head. */
+stailq_insert_head(&queue, &n1->node);
+
+n2 = malloc(sizeof(struct entry));	/* Insert at the tail. */
+stailq_insert_tail(&queue, &n2->node);
+
+n3 = malloc(sizeof(struct entry));	/* Insert after. */
+stailq_insert_after(&queue, &n1->node, &n3->node);
+
+stailq_remove(&queue, &n2->node);	/* Deletion. */
+free(n2);
+
+np = stailq_first(&queue);		/* Deletion from the head. */
+stailq_remove_head(&queue);
+n1 = containerof(np, struct entry, node);
+free(n1);
+					/* Forward traversal. */
+stailq_foreach(np, &queue) {
+	n1 = containerof(np, struct entry, node);
+	n1-> ...
+}
+					/* Safe forward traversal. */
+stailq_foreach_safe(np, &queue, np_temp) {
+	n1 = containerof(np, struct entry, node);
+	n1->do_stuff();
+	...
+	stailq_remove(&queue, np);
+	free(n1);
+}
+					/* TailQ Deletion. */
+while (!stailq_empty(&queue)) {
+	np = stailq_first(&queue);
+	stailq_remove_head(&queue);
+	n1 = containerof(np, struct entry, node);
+	free(n1);
+}
+.Ed
+.Ss Macro-Based API Example
+.Bd -literal
+#include <sys/queue.h>
+#include <stdlib.h>
+
 STAILQ_HEAD(stailhead, entry) head =
     STAILQ_HEAD_INITIALIZER(head);
 struct stailhead *headp;		/* Singly-linked tail queue head. */
@@ -350,7 +642,7 @@ struct entry {
 	...
 	STAILQ_ENTRY(entry) entries;	/* Tail queue. */
 	...
-} *n1, *n2, *n3, *np;
+} *n1, *n2, *n3, *np, *np_temp;
 
 STAILQ_INIT(&head);			/* Initialize the queue. */
 
@@ -459,5 +751,11 @@ option.
 .Sh HISTORY
 The
 .Nm STAILQ
-functions first appeared in
+macros first appeared in
 .Bx 4.4 .
+.Pp
+The function-based API was introduced in
+.Fx 15.1 .
+.Sh AUTHORS
+The function-based API was written by
+.An Minsoo Choo Aq Mt minsoochoo0122@proton.me .

@@ -262,7 +262,23 @@ MLINKS+= slist.3 slist_concat \
 		slist.3 SLIST_REMOVE_PREVPTR.3 \
 		slist.3 SLIST_SPLIT_AFTER.3 \
 		slist.3 SLIST_SWAP.3
-MLINKS+=	stailq.3 STAILQ_CLASS_ENTRY.3 \
+MLINKS+= stailq.3 stailq_concat \
+		stailq.3 stailq_empty \
+		stailq.3 stailq_empty_atomic \
+		stailq.3 stailq_first \
+		stailq.3 stailq_init \
+		stailq.3 stailq_insert_after \
+		stailq.3 stailq_insert_head \
+		stailq.3 stailq_insert_tail \
+		stailq.3 stailq_last \
+		stailq.3 stailq_next \
+		stailq.3 stailq_remove \
+		stailq.3 stailq_remove_after \
+		stailq.3 stailq_remove_head \
+		stailq.3 stailq_reverse \
+		stailq.3 stailq_split_after \
+		stailq.3 stailq_swap \
+		stailq.3 STAILQ_CLASS_ENTRY.3 \
 		stailq.3 STAILQ_CLASS_HEAD.3 \
 		stailq.3 STAILQ_CONCAT.3 \
 		stailq.3 STAILQ_EMPTY.3 \
