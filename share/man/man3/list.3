@@ -1,5 +1,6 @@
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2026 The FreeBSD Foundation. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,10 +26,28 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 17, 2026
+.Dd January 18, 2026
 .Dt LIST 3
 .Os
 .Sh NAME
+.Nm list_concat ,
+.Nm list_empty ,
+.Nm list_empty_atomic ,
+.Nm list_first ,
+.Nm list_foreach ,
+.Nm list_foreach_from ,
+.Nm list_foreach_from_safe ,
+.Nm list_foreach_safe ,
+.Nm list_init ,
+.Nm list_insert_after ,
+.Nm list_insert_before ,
+.Nm list_insert_head ,
+.Nm list_next ,
+.Nm list_prev ,
+.Nm list_remove ,
+.Nm list_replace ,
+.Nm list_split_after ,
+.Nm list_swap ,
 .Nm LIST_CLASS_ENTRY ,
 .Nm LIST_CLASS_HEAD ,
 .Nm LIST_CONCAT ,
@@ -52,8 +71,43 @@
 .Nm LIST_REPLACE ,
 .Nm LIST_SPLIT_AFTER ,
 .Nm LIST_SWAP
-.Nd implementation of lists
+.Nd doubly-linked list implementation
 .Sh SYNOPSIS
+.In sys/list.h
+.\"
+.Ft void
+.Fn list_concat "struct list *list1" "struct list *list2"
+.Ft bool
+.Fn list_empty "const struct list *list"
+.Ft bool
+.Fn list_empty_atomic "const struct list *list"
+.Ft "struct list_node *"
+.Fn list_first "const struct list *list"
+.Fn list_foreach "struct list_node *var" "const struct list *list"
+.Fn list_foreach_from "struct list_node *var" "const struct list *list"
+.Fn list_foreach_from_safe "struct list_node *var" "const struct list *list" "struct list_node *tvar"
+.Fn list_foreach_safe "struct list_node *var" "const struct list *list" "struct list_node *tvar"
+.Ft void
+.Fn list_init "struct list *list"
+.Ft void
+.Fn list_insert_after "struct list_node *listnode" "struct list_node *node"
+.Ft void
+.Fn list_insert_before "struct list_node *listnode" "struct list_node *node"
+.Ft void
+.Fn list_insert_head "struct list *list" "struct list_node *node"
+.Ft "struct list_node *"
+.Fn list_next "const struct list_node *node"
+.Ft "struct list_node *"
+.Fn list_prev "const struct list_node *node" "const struct list *list"
+.Ft void
+.Fn list_remove "struct list_node *node"
+.Ft void
+.Fn list_replace "struct list_node *node" "struct list_node *node2"
+.Ft void
+.Fn list_split_after "struct list *list" "struct list_node *node" "struct list *rest"
+.Ft void
+.Fn list_swap "struct list *list1" "struct list *list2"
+.\"
 .In sys/queue.h
 .\"
 .Fn LIST_CLASS_ENTRY "CLASSTYPE"
@@ -81,34 +135,214 @@
 .Fn LIST_SWAP "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .\"
 .Sh DESCRIPTION
-These macros define and operate on doubly-linked lists which
-can be used in both C and C++ source code.
-Lists support the following functionality:
+Doubly-linked lists are the simplest of the doubly linked data structures.
+The elements are doubly linked so that an arbitrary element can be
+removed without traversing the list, and bidirectional traversal is possible.
+Doubly-linked lists support the following operations:
 .Bl -enum -compact -offset indent
 .It
 Insertion of a new entry at the head of the list.
 .It
 Insertion of a new entry after any element in the list.
 .It
-O(1) removal of an entry from the head of the list.
+Insertion of a new entry before any element in the list.
 .It
-Forward traversal through the list.
+O(1) removal of any entry in the list.
+.It
+Forward and backward traversal through the list.
+.It
+O(n) concatenation of two lists.
 .It
 Splitting a list in two after any element in the list.
 .It
 Swapping the contents of two lists.
-.It
-O(n) concatenation of two lists.
-.It
-They may be traversed backwards.
 .El
 However:
 .Bl -enum -compact -offset indent
+.It
+Each element requires two pointers rather than one.
+.It
+Code size and execution time of operations (except for removal) is about
+twice that of the singly-linked data-structures.
 .It
 To traverse backwards, an entry to begin the traversal and the list in
 which it is contained must be specified.
 .El
 .Pp
+The
+.Nm list
+implementation provides both a modern function-based API (recommended)
+and a traditional macro-based API for compatibility.
+The function-based API is recommended for new code as it provides:
+.Bl -bullet -offset indent
+.It
+Type safety without requiring type parameters
+.It
+Better debugger support
+.It
+Simpler function signatures
+.It
+Compatible with both C and C++
+.El
+.Ss Function-Based API
+The function-based API uses standard structure types
+.Vt struct list
+and
+.Vt struct list_node
+defined in
+.In sys/list.h .
+User-defined structures should embed
+.Vt struct list_node
+and use
+.Fa containerof
+macro to convert node pointers to structure pointers.
+.Pp
+.Fn list_concat
+concatenates the list headed by
+.Fa list2
+onto the end of the one headed by
+.Fa list1
+removing all entries from the former.
+Use of this function should be avoided as it traverses the entirety of the
+.Fa list1
+list.
+A tail queue should be used if this operation is needed in
+high-usage code paths or to operate on long lists.
+.Pp
+.Fn list_empty
+evaluates to true if there are no elements in the list.
+.Fn list_empty_atomic
+has the same behavior, but can be safely used in contexts where it is
+possible that a different thread is concurrently updating the list.
+.Pp
+.Fn list_first
+returns the first element in the list or NULL if the list
+is empty.
+.Pp
+.Fn list_foreach
+traverses the list referenced by
+.Fa list
+in the forward direction, assigning each node in turn to
+.Fa var .
+.Pp
+.Fn list_foreach_from
+behaves identically to
+.Fn list_foreach
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the loop at
+.Fa var
+instead of the first node in the list referenced by
+.Fa list .
+.Pp
+.Fn list_foreach_safe
+traverses the list referenced by
+.Fa list
+in the forward direction, assigning each node in turn to
+.Fa var .
+However, unlike
+.Fn list_foreach
+here it is permitted to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
+.Pp
+.Fn list_foreach_from_safe
+behaves identically to
+.Fn list_foreach_safe
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found node and begins the loop at
+.Fa var
+instead of the first node in the list referenced by
+.Fa list .
+.Pp
+.Fn list_init
+initializes the list referenced by
+.Fa list .
+.Pp
+.Fn list_insert_head
+inserts the new element
+.Fa node
+at the head of the list.
+.Pp
+.Fn list_insert_after
+inserts the new element
+.Fa node
+after the element
+.Fa listnode .
+.Pp
+.Fn list_insert_before
+inserts the new element
+.Fa node
+before the element
+.Fa listnode .
+.Pp
+.Fn list_next
+returns the next element in the list, or NULL if this is the last.
+.Pp
+.Fn list_prev
+returns the previous element in the list, or NULL if this is the first.
+List
+.Fa list
+must contain element
+.Fa node .
+.Pp
+.Fn list_remove
+removes the element
+.Fa node
+from the list.
+.Pp
+.Fn list_replace
+replaces the element
+.Fa node
+with
+.Fa node2
+in the list.
+The element
+.Fa node2
+must not already be on a list.
+.Pp
+.Fn list_split_after
+splits the list referenced by
+.Fa list ,
+making
+.Fa rest
+reference the list formed by elements after
+.Fa node
+in
+.Fa list .
+.Pp
+.Fn list_swap
+swaps the contents of
+.Fa list1
+and
+.Fa list2 .
+.Ss Converting Between Node and Structure Pointers
+Since the function-based API operates on node pointers
+.Pf ( Vt struct list_node ) ,
+user code needs to convert between node pointers and pointers to the
+containing structure.
+This is typically done using a
+.Fn containerof
+macro:
+.Bd -literal -offset indent
+containerof(ptr, type, member)
+.Ed
+.Pp
+This macro takes a pointer to a structure member
+.Fa ptr ,
+the type of the containing structure
+.Fa type ,
+and the name of the member field
+.Fa member ,
+and returns a pointer to the containing structure.
+.Ss Macro-Based API
+The macro-based API is provided for compatibility with existing code.
 In the macro definitions,
 .Fa TYPE
 is the name of a user defined structure.
@@ -318,8 +552,68 @@ swaps the contents of
 .Fa head1
 and
 .Fa head2 .
-.Sh EXAMPLE
+.Sh EXAMPLES
+.Ss Function-Based API Example
 .Bd -literal
+#include <sys/list.h>
+#include <stdlib.h>
+
+struct entry {
+	...
+	struct list_node node;	/* List. */
+	...
+} *n1, *n2, *n3;
+struct list list;
+struct list_node *np, *np_temp;
+
+list_init(&list);			/* Initialize the list. */
+
+n1 = malloc(sizeof(struct entry));	/* Insert at the head. */
+list_insert_head(&list, &n1->node);
+
+n2 = malloc(sizeof(struct entry));	/* Insert after. */
+list_insert_after(&n1->node, &n2->node);
+
+n3 = malloc(sizeof(struct entry));	/* Insert before. */
+list_insert_before(&n2->node, &n3->node);
+
+list_remove(&n2->node);			/* Deletion. */
+free(n2);
+					/* Forward traversal. */
+list_foreach(np, &list) {
+	n1 = containerof(np, struct entry, node);
+	n1-> ...
+}
+					/* Safe forward traversal. */
+list_foreach_safe(np, &list, np_temp) {
+	n1 = containerof(np, struct entry, node);
+	n1->do_stuff();
+	...
+	list_remove(np);
+	free(n1);
+}
+					/* List Deletion. */
+while (!list_empty(&list)) {
+	np = list_first(&list);
+	list_remove(np);
+	n1 = containerof(np, struct entry, node);
+	free(n1);
+}
+					/* Faster List Deletion. */
+np = list_first(&list);
+while (np != NULL) {
+	np_temp = list_next(np);
+	n1 = containerof(np, struct entry, node);
+	free(n1);
+	np = np_temp;
+}
+list_init(&list);
+.Ed
+.Ss Macro-Based API Example
+.Bd -literal
+#include <sys/queue.h>
+#include <stdlib.h>
+
 LIST_HEAD(listhead, entry) head =
     LIST_HEAD_INITIALIZER(head);
 struct listhead *headp;			/* List head. */
@@ -433,5 +727,11 @@ option.
 .Sh HISTORY
 The
 .Nm LIST
-functions first appeared in
+macros first appeared in
 .Bx 4.4 .
+.Pp
+The function-based API was introduced in
+.Fx 15.1 .
+.Sh AUTHORS
+The function-based API was written by
+.An Minsoo Choo Aq Mt minsoochoo0122@proton.me .

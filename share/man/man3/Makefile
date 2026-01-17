@@ -204,7 +204,22 @@ MLINKS+=	Q_SIGNSHFT.3 Q_SSIGN.3 \
 		Q_SIGNSHFT.3 Q_GCRAW.3 \
 		Q_SIGNSHFT.3 Q_GCVAL.3 \
 		Q_SIGNSHFT.3 Q_SCVAL.3
-MLINKS+=	list.3 LIST_CLASS_ENTRY.3 \
+MLINKS+=	list.3 list_concat \
+		list.3 list_empty \
+		list.3 list_empty_atomic \
+		list.3 list_first \
+		list.3 list_init \
+		list.3 list_insert_after \
+		list.3 list_insert_before \
+		list.3 list_insert_head \
+		list.3 list_next \
+		list.3 list_prev \
+		list.3 list_remove \
+		list.3 list_remove_head \
+		list.3 list_replace \
+		list.3 list_split_after \
+		list.3 list_swap \
+		list.3 LIST_CLASS_ENTRY.3 \
 		list.3 LIST_CLASS_HEAD.3 \
 		list.3 LIST_EMPTY.3 \
 		list.3 LIST_EMPTY_ATOMIC.3 \
