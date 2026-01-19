@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 10, 2024
+.Dd January 17, 2026
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -356,7 +356,7 @@ Most references to those two files in particular can be replaced by
 The system keeps a linked list of interfaces using the
 .Li TAILQ
 macros defined in
-.Xr queue 3 ;
+.Xr tailq 3 ;
 this list is headed by a
 .Vt "struct ifnethead"
 called
@@ -1163,7 +1163,7 @@ generator for point-to-point interfaces.
 A link back to the interface structure.
 .It Va ifa_link
 .Pq Fn TAILQ_ENTRY ifaddr
-.Xr queue 3
+.Xr tailq 3
 glue for list of addresses on each interface.
 .It Va ifa_rtrequest
 See below.
@@ -1220,7 +1220,7 @@ The elements of the structure are as follows:
 .Bl -tag -width ".Va ifma_refcount" -offset indent
 .It Va ifma_link
 .Pq Fn LIST_ENTRY ifmultiaddr
-.Xr queue 3
+.Xr list 3
 macro glue.
 .It Va ifma_addr
 .Pq Vt "struct sockaddr *"
@@ -1672,8 +1672,9 @@ if one is found, else it returns a null pointer.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr link_addr 3 ,
-.Xr queue 3 ,
+.Xr list 3 ,
 .Xr sysctl 3 ,
+.Xr tailq 3 ,
 .Xr bpf 4 ,
 .Xr ifmib 4 ,
 .Xr lo 4 ,

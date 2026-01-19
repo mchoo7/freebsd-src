@@ -26,14 +26,18 @@ MAN=		alloca.3 \
 		Q_SIGNSHFT.3 \
 		qmath.3 \
 		queue.3 \
+		list.3 \
 		sigevent.3 \
 		siginfo.3 \
+		slist.3 \
 		snl.3 \
+		stailq.3 \
 		stats.3 \
 		stdarg.3 \
 		stdbit.3 \
 		stdckdint.3 \
 		sysexits.3 \
+		tailq.3 \
 		tgmath.3 \
 		timeradd.3 \
 		tree.3
@@ -201,104 +205,75 @@ MLINKS+=	Q_SIGNSHFT.3 Q_SSIGN.3 \
 		Q_SIGNSHFT.3 Q_GCRAW.3 \
 		Q_SIGNSHFT.3 Q_GCVAL.3 \
 		Q_SIGNSHFT.3 Q_SCVAL.3
-MLINKS+=	queue.3 LIST_CLASS_ENTRY.3 \
-		queue.3 LIST_CLASS_HEAD.3 \
-		queue.3 LIST_EMPTY.3 \
-		queue.3 LIST_EMPTY_ATOMIC.3 \
-		queue.3 LIST_ENTRY.3 \
-		queue.3 LIST_FIRST.3 \
-		queue.3 LIST_FOREACH.3 \
-		queue.3 LIST_FOREACH_FROM.3 \
-		queue.3 LIST_FOREACH_FROM_SAFE.3 \
-		queue.3 LIST_FOREACH_SAFE.3 \
-		queue.3 LIST_HEAD.3 \
-		queue.3 LIST_HEAD_INITIALIZER.3 \
-		queue.3 LIST_INIT.3 \
-		queue.3 LIST_INSERT_AFTER.3 \
-		queue.3 LIST_INSERT_BEFORE.3 \
-		queue.3 LIST_INSERT_HEAD.3 \
-		queue.3 LIST_NEXT.3 \
-		queue.3 LIST_PREV.3 \
-		queue.3 LIST_REMOVE.3 \
-		queue.3 LIST_REPLACE.3 \
-		queue.3 LIST_SPLIT_AFTER.3 \
-		queue.3 LIST_SWAP.3 \
-		queue.3 SLIST_CLASS_ENTRY.3 \
-		queue.3 SLIST_CLASS_HEAD.3 \
-		queue.3 SLIST_EMPTY.3 \
-		queue.3 SLIST_EMPTY_ATOMIC.3 \
-		queue.3 SLIST_ENTRY.3 \
-		queue.3 SLIST_FIRST.3 \
-		queue.3 SLIST_FOREACH.3 \
-		queue.3 SLIST_FOREACH_FROM.3 \
-		queue.3 SLIST_FOREACH_FROM_SAFE.3 \
-		queue.3 SLIST_FOREACH_SAFE.3 \
-		queue.3 SLIST_HEAD.3 \
-		queue.3 SLIST_HEAD_INITIALIZER.3 \
-		queue.3 SLIST_INIT.3 \
-		queue.3 SLIST_INSERT_AFTER.3 \
-		queue.3 SLIST_INSERT_HEAD.3 \
-		queue.3 SLIST_NEXT.3 \
-		queue.3 SLIST_REMOVE.3 \
-		queue.3 SLIST_REMOVE_AFTER.3 \
-		queue.3 SLIST_REMOVE_HEAD.3 \
-		queue.3 SLIST_REMOVE_PREVPTR.3 \
-		queue.3 SLIST_SPLIT_AFTER.3 \
-		queue.3 SLIST_SWAP.3 \
-		queue.3 STAILQ_CLASS_ENTRY.3 \
-		queue.3 STAILQ_CLASS_HEAD.3 \
-		queue.3 STAILQ_CONCAT.3 \
-		queue.3 STAILQ_EMPTY.3 \
-		queue.3 STAILQ_EMPTY_ATOMIC.3 \
-		queue.3 STAILQ_ENTRY.3 \
-		queue.3 STAILQ_FIRST.3 \
-		queue.3 STAILQ_FOREACH.3 \
-		queue.3 STAILQ_FOREACH_FROM.3 \
-		queue.3 STAILQ_FOREACH_FROM_SAFE.3 \
-		queue.3 STAILQ_FOREACH_SAFE.3 \
-		queue.3 STAILQ_HEAD.3 \
-		queue.3 STAILQ_HEAD_INITIALIZER.3 \
-		queue.3 STAILQ_INIT.3 \
-		queue.3 STAILQ_INSERT_AFTER.3 \
-		queue.3 STAILQ_INSERT_HEAD.3 \
-		queue.3 STAILQ_INSERT_TAIL.3 \
-		queue.3 STAILQ_LAST.3 \
-		queue.3 STAILQ_NEXT.3 \
-		queue.3 STAILQ_REMOVE.3 \
-		queue.3 STAILQ_REMOVE_AFTER.3 \
-		queue.3 STAILQ_REMOVE_HEAD.3 \
-		queue.3 STAILQ_REVERSE.3 \
-		queue.3 STAILQ_SPLIT_AFTER.3 \
-		queue.3 STAILQ_SWAP.3 \
-		queue.3 TAILQ_CLASS_ENTRY.3 \
-		queue.3 TAILQ_CLASS_HEAD.3 \
-		queue.3 TAILQ_CONCAT.3 \
-		queue.3 TAILQ_EMPTY.3 \
-		queue.3 TAILQ_EMPTY_ATOMIC.3 \
-		queue.3 TAILQ_ENTRY.3 \
-		queue.3 TAILQ_FIRST.3 \
-		queue.3 TAILQ_FOREACH.3 \
-		queue.3 TAILQ_FOREACH_FROM.3 \
-		queue.3 TAILQ_FOREACH_FROM_SAFE.3 \
-		queue.3 TAILQ_FOREACH_REVERSE.3 \
-		queue.3 TAILQ_FOREACH_REVERSE_FROM.3 \
-		queue.3 TAILQ_FOREACH_REVERSE_FROM_SAFE.3 \
-		queue.3 TAILQ_FOREACH_REVERSE_SAFE.3 \
-		queue.3 TAILQ_FOREACH_SAFE.3 \
-		queue.3 TAILQ_HEAD.3 \
-		queue.3 TAILQ_HEAD_INITIALIZER.3 \
-		queue.3 TAILQ_INIT.3 \
-		queue.3 TAILQ_INSERT_AFTER.3 \
-		queue.3 TAILQ_INSERT_BEFORE.3 \
-		queue.3 TAILQ_INSERT_HEAD.3 \
-		queue.3 TAILQ_INSERT_TAIL.3 \
-		queue.3 TAILQ_LAST.3 \
-		queue.3 TAILQ_NEXT.3 \
-		queue.3 TAILQ_PREV.3 \
-		queue.3 TAILQ_REMOVE.3 \
-		queue.3 TAILQ_REPLACE.3 \
-		queue.3 TAILQ_SPLIT_AFTER.3 \
-		queue.3 TAILQ_SWAP.3
+MLINKS+=	list.3 LIST_CLASS_ENTRY.3 \
+		list.3 LIST_CLASS_HEAD.3 \
+		list.3 LIST_EMPTY.3 \
+		list.3 LIST_EMPTY_ATOMIC.3 \
+		list.3 LIST_ENTRY.3 \
+		list.3 LIST_FIRST.3 \
+		list.3 LIST_FOREACH.3 \
+		list.3 LIST_FOREACH_FROM.3 \
+		list.3 LIST_FOREACH_FROM_SAFE.3 \
+		list.3 LIST_FOREACH_SAFE.3 \
+		list.3 LIST_HEAD.3 \
+		list.3 LIST_HEAD_INITIALIZER.3 \
+		list.3 LIST_INIT.3 \
+		list.3 LIST_INSERT_AFTER.3 \
+		list.3 LIST_INSERT_BEFORE.3 \
+		list.3 LIST_INSERT_HEAD.3 \
+		list.3 LIST_NEXT.3 \
+		list.3 LIST_PREV.3 \
+		list.3 LIST_REMOVE.3 \
+		list.3 LIST_REPLACE.3 \
+		list.3 LIST_SPLIT_AFTER.3 \
+		list.3 LIST_SWAP.3
+MLINKS+=	slist.3 SLIST_CLASS_ENTRY.3 \
+		slist.3 SLIST_CLASS_HEAD.3 \
+		slist.3 SLIST_EMPTY.3 \
+		slist.3 SLIST_EMPTY_ATOMIC.3 \
+		slist.3 SLIST_ENTRY.3 \
+		slist.3 SLIST_FIRST.3 \
+		slist.3 SLIST_FOREACH.3 \
+		slist.3 SLIST_FOREACH_FROM.3 \
+		slist.3 SLIST_FOREACH_FROM_SAFE.3 \
+		slist.3 SLIST_FOREACH_SAFE.3 \
+		slist.3 SLIST_HEAD.3 \
+		slist.3 SLIST_HEAD_INITIALIZER.3 \
+		slist.3 SLIST_INIT.3 \
+		slist.3 SLIST_INSERT_AFTER.3 \
+		slist.3 SLIST_INSERT_HEAD.3 \
+		slist.3 SLIST_NEXT.3 \
+		slist.3 SLIST_REMOVE.3 \
+		slist.3 SLIST_REMOVE_AFTER.3 \
+		slist.3 SLIST_REMOVE_HEAD.3 \
+		slist.3 SLIST_REMOVE_PREVPTR.3 \
+		slist.3 SLIST_SPLIT_AFTER.3 \
+		slist.3 SLIST_SWAP.3
+MLINKS+=	stailq.3 STAILQ_CLASS_ENTRY.3 \
+		stailq.3 STAILQ_CLASS_HEAD.3 \
+		stailq.3 STAILQ_CONCAT.3 \
+		stailq.3 STAILQ_EMPTY.3 \
+		stailq.3 STAILQ_EMPTY_ATOMIC.3 \
+		stailq.3 STAILQ_ENTRY.3 \
+		stailq.3 STAILQ_FIRST.3 \
+		stailq.3 STAILQ_FOREACH.3 \
+		stailq.3 STAILQ_FOREACH_FROM.3 \
+		stailq.3 STAILQ_FOREACH_FROM_SAFE.3 \
+		stailq.3 STAILQ_FOREACH_SAFE.3 \
+		stailq.3 STAILQ_HEAD.3 \
+		stailq.3 STAILQ_HEAD_INITIALIZER.3 \
+		stailq.3 STAILQ_INIT.3 \
+		stailq.3 STAILQ_INSERT_AFTER.3 \
+		stailq.3 STAILQ_INSERT_HEAD.3 \
+		stailq.3 STAILQ_INSERT_TAIL.3 \
+		stailq.3 STAILQ_LAST.3 \
+		stailq.3 STAILQ_NEXT.3 \
+		stailq.3 STAILQ_REMOVE.3 \
+		stailq.3 STAILQ_REMOVE_AFTER.3 \
+		stailq.3 STAILQ_REMOVE_HEAD.3 \
+		stailq.3 STAILQ_REVERSE.3 \
+		stailq.3 STAILQ_SPLIT_AFTER.3 \
+		stailq.3 STAILQ_SWAP.3
 MLINKS+=	stats.3 stats_tpl_alloc.3 \
 		stats.3 stats_tpl_fetch_allocid.3 \
 		stats.3 stats_tpl_fetch.3 \
@@ -328,6 +303,35 @@ MLINKS+=	stdarg.3 va_arg.3 \
 MLINKS+=	stdckdint.3 ckd_add.3 \
 		stdckdint.3 ckd_sub.3 \
 		stdckdint.3 ckd_mul.3
+MLINKS+=	tailq.3 TAILQ_CLASS_ENTRY.3 \
+		tailq.3 TAILQ_CLASS_HEAD.3 \
+		tailq.3 TAILQ_CONCAT.3 \
+		tailq.3 TAILQ_EMPTY.3 \
+		tailq.3 TAILQ_EMPTY_ATOMIC.3 \
+		tailq.3 TAILQ_ENTRY.3 \
+		tailq.3 TAILQ_FIRST.3 \
+		tailq.3 TAILQ_FOREACH.3 \
+		tailq.3 TAILQ_FOREACH_FROM.3 \
+		tailq.3 TAILQ_FOREACH_FROM_SAFE.3 \
+		tailq.3 TAILQ_FOREACH_REVERSE.3 \
+		tailq.3 TAILQ_FOREACH_REVERSE_FROM.3 \
+		tailq.3 TAILQ_FOREACH_REVERSE_FROM_SAFE.3 \
+		tailq.3 TAILQ_FOREACH_REVERSE_SAFE.3 \
+		tailq.3 TAILQ_FOREACH_SAFE.3 \
+		tailq.3 TAILQ_HEAD.3 \
+		tailq.3 TAILQ_HEAD_INITIALIZER.3 \
+		tailq.3 TAILQ_INIT.3 \
+		tailq.3 TAILQ_INSERT_AFTER.3 \
+		tailq.3 TAILQ_INSERT_BEFORE.3 \
+		tailq.3 TAILQ_INSERT_HEAD.3 \
+		tailq.3 TAILQ_INSERT_TAIL.3 \
+		tailq.3 TAILQ_LAST.3 \
+		tailq.3 TAILQ_NEXT.3 \
+		tailq.3 TAILQ_PREV.3 \
+		tailq.3 TAILQ_REMOVE.3 \
+		tailq.3 TAILQ_REPLACE.3 \
+		tailq.3 TAILQ_SPLIT_AFTER.3 \
+		tailq.3 TAILQ_SWAP.3
 MLINKS+=	timeradd.3 timerclear.3 \
 		timeradd.3 timercmp.3 \
 		timeradd.3 timerisset.3 \
