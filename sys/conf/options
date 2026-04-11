@@ -73,6 +73,7 @@ TSLOGSIZE	opt_global.h
 
 # Scheduler options
 SCHED_4BSD	opt_sched.h
+SCHED_EEVDF	opt_sched.h
 SCHED_ULE	opt_sched.h
 SCHED_STATS	opt_sched.h
 PREEMPTION	opt_sched.h

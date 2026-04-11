@@ -1,0 +1,19 @@
+Run the EEVDF core regression tests from the source tree:
+
+    python3 tools/test/sched_eevdf/eevdf_test.py
+    CC=clang python3 tools/test/sched_eevdf/eevdf_test.py --sanitize
+
+The runner extracts the actual scheduler functions into a temporary C
+translation unit and supplies a deterministic kernel-service fixture.
+It requires Python 3 and a C compiler; --sanitize also requires compiler
+support for AddressSanitizer and UndefinedBehaviorSanitizer.
+
+Checks include the reduced RB deletion regression, randomized red-black
+and subtree-minimum invariants, exhaustive eligible-deadline selection,
+proportional CPU service, lag and request preservation, large virtual-time
+origins, class changes, priority inheritance, renice, migration, wakeup
+preemption, non-FIFO quanta, RR interval conversion, and CPU-use decay.
+
+The thread, mutex, bitmap queue, and clock services are fixtures.  These
+tests do not exercise hardware context switching or concurrent CPUs and
+must be supplemented by kernel builds and workloads on FreeBSD.
