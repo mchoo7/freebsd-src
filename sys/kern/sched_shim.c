@@ -118,7 +118,7 @@ int __read_mostly		dtrace_vtime_active;
 dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #endif
 
-static char sched_name[32] = "ULE";
+static char sched_name[32] = "EEVDF";
 
 SET_DECLARE(sched_instance_set, struct sched_selection);
 

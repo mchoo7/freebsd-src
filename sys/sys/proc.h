@@ -396,7 +396,7 @@ struct thread {
 
 struct thread0_storage {
 	struct thread t0st_thread;
-	uint64_t t0st_sched[10];
+	uint64_t t0st_sched[17];
 };
 
 struct mtx *thread_lock_block(struct thread *);

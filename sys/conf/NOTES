@@ -211,6 +211,7 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 options 	SCHED_4BSD
 options 	SCHED_STATS
 options 	SCHED_ULE
+options 	SCHED_EEVDF
 
 #####################################################################
 # SMP OPTIONS:
