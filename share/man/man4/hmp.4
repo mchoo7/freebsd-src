@@ -1,0 +1,250 @@
+.\"
+.\" Copyright (c) 2026 FreeBSD Foundation
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Author: Minsoo Choo <minsoochoo0122@proton.me>
+.\"
+.Dd May 15, 2026
+.Dt HMP 4
+.Os
+.Sh NAME
+.Nm HMP
+.Nd heterogeneous multi-processing framework
+.Sh SYNOPSIS
+.Cd options HMP
+.Sh DESCRIPTION
+The
+.Nm
+framework provides kernel support for heterogeneous multi-processor systems,
+where CPUs in the same system differ in their performance and/or efficiency
+characteristics.
+The
+.Nm
+framework exposes two distinct notions of CPU capability to the scheduler:
+.Bl -tag -width "score[HMP_SCORE_PERF]"
+.It Va capacity
+A static, boot-time value describing the relative throughput of each CPU,
+derived from its microarchitecture and maximum frequency.
+It is used by the load balancer to distribute work proportionally across
+heterogeneous CPUs.
+All capacity values are normalized to the range 0 to
+.Dv HMP_CAPACITY_SCALE
+(1024), allowing a single scale to represent values reported by different
+hardware interfaces.
+.It Va score[HMP_SCORE_PERF]
+A dynamic value describing the current performance capability of a CPU
+(higher means faster).
+It is updated at runtime and is read by the scheduler when placing
+interactive or real-time threads.
+.It Va score[HMP_SCORE_EFF]
+A dynamic value describing the current efficiency capability of a CPU
+(higher means less power per unit of work).
+It is updated alongside
+.Va score[HMP_SCORE_PERF]
+and is read by the scheduler when placing background and idle-priority
+threads.
+.El
+.Sh PROVIDERS
+The
+.Nm
+framework is driven by two independent classes of
+.Em providers ,
+which are pluggable backends responsible for discovering CPU capabilities
+and keeping scores up to date:
+.Bl -tag -width "capacity provider"
+.It Em capacity provider
+Populates the static per-CPU
+.Va capacity
+field and the system-wide
+.Va total_capacity .
+Exactly one capacity provider wins selection at boot.
+.It Em score provider
+Populates and maintains the per-CPU
+.Va score[HMP_SCORE_PERF]
+and
+.Va score[HMP_SCORE_EFF] .
+At most one score provider wins selection at boot;
+zero is also a valid outcome, in which case the scheduler operates on
+capacity alone.
+.El
+.Pp
+The two provider classes are selected independently, so mixed
+configurations are expressed naturally without fused provider
+objects.
+Each provider, regardless of class, supplies two callbacks:
+.Bl -tag -width "probe()"
+.It Fn probe
+Returns zero if the provider can run on the current system.
+Providers must not modify any per-CPU state during probing.
+.It Fn init
+Populates the per-CPU fields the provider is responsible for, across
+every online CPU.
+Returns zero on succeses.
+On failure, the provider must reset any per-CPU fields it modified
+before returning false.
+Called on each probed provider in descending priority order until one
+succeeds; the first successful provider becomes active for its class.
+Called exactly once, on the winning provider of each class only.
+.El
+.Pp
+Capacity providers are registered via the
+.Fn HMP_CAPACITY_PROVIDER_DECLARE
+macro, and score providers via the
+.Fn HMP_SCORE_PROVIDER_DECLARE
+macro.
+During initialization at
+.Dv SI_SUB_SMP + 1 ,
+each class is probed independently.
+Probed providers are then tried in descending priority order;
+the first provider whose
+.Fn init
+succeeds is selected as active for that class.
+Capacity selection runs first, so a score provider's
+.Fn probe
+and
+.Fn init
+callbacks may read per-CPU capacity if they need to normalize against it.
+.Pp
+A built-in
+.Dq default
+capacity provider with priority 0 is always present and always probes
+successfully; it assigns
+.Dv HMP_CAPACITY_DEFAULT
+to every CPU, yielding behavior equivalent to a homogeneous system when
+no other capacity provider is available.
+There is no default score provider:
+absence of runtime scores is a valid state, and the scheduler falls back
+to capacity-only placement decisions in that case.
+.Pp
+A single backend that supplies both classes of information registers one
+capacity provider and one score provider from the same
+driver.
+.Sh SYSCTL VARIABLES
+The
+.Nm
+framework exposes its state through the
+.Va kern.hmp
+sysctl tree.
+.Pp
+System-wide variables:
+.Bl -tag -width "kern.hmp.provider.active_capacity"
+.It Va kern.hmp.total_capacity
+Sum of the per-CPU capacities, normalized to
+.Dv HMP_CAPACITY_SCALE .
+.It Va kern.hmp.has_scores
+True if a score provider is supplying dynamic performance or efficiency
+scores.
+.It Va kern.hmp.provider.active_capacity
+Name of the currently active capacity provider.
+Always set.
+.It Va kern.hmp.provider.active_score
+Name of the currently active score provider, or
+.Dq none
+if no score provider was selected.
+.El
+.Pp
+Per-CPU variables, available under
+.Va kern.hmp.cpu.<N>
+for each CPU
+.Ar N :
+.Bl -tag -width "capacity_percent"
+.It Va capacity
+Static capacity in the range 0 to
+.Dv HMP_CAPACITY_SCALE .
+.It Va capacity_percent
+Static capacity expressed as a percentage of the scale.
+.It Va score.perf
+Current dynamic performance score.
+.It Va score.eff
+Current dynamic efficiency score.
+.El
+.Pp
+Per-provider variables are exposed under
+.Va kern.hmp.provider.capacity.<name>
+for capacity providers and
+.Va kern.hmp.provider.score.<name>
+for score providers.
+Every registered provider is listed, not just the winner, so operators
+can see which providers were available and why one was chosen over
+another.
+Each provider exposes three fields:
+.Bl -tag -width "priority"
+.It Va priority
+Provider priority; the highest-priority probed provider of each class
+becomes active.
+.It Va probed
+True if the provider's
+.Fn probe
+callback returned true on this system.
+.It Va active
+True if the provider was selected as the active provider for its class.
+.El
+.Sh IMPLEMENTATION NOTES
+Per-CPU state is stored in a
+.Vt DPCPU
+area of type
+.Vt struct hmp_pcpu .
+Capacity is written once by the capacity provider at initialization and
+never subsequently modified, so it may be read without synchronization.
+Scores are written by the score provider and read locklessly
+by the scheduler;
+accessor and setter functions
+.Fn hmp_get_score
+and
+.Fn hmp_set_score
+use acquire/release atomic operations to ensure consistent visibility
+without requiring the scheduler to take locks on hot paths.
+.Pp
+Score updates follow a push model:
+the active score provider writes new values into per-CPU slots in
+response to hardware or firmware events, and the scheduler
+reads the most recent values with a single atomic load.
+The scheduler never calls back into the provider on its hot path.
+.Pp
+The scheduler helpers
+.Fn hmp_highest_capacity_cpu ,
+.Fn hmp_lowest_capacity_cpu ,
+and
+.Fn hmp_best_cpu
+iterate over a CPU mask and return, respectively, the CPU with the highest
+or lowest static capacity and the CPU with the highest dynamic score of
+the requested type.
+When no score provider is active,
+.Fn hmp_best_score_cpu
+transparently falls back to
+.Fn hmp_best_capacity_cpu .
+Both helpers run in O(n) time in the number of CPUs;
+a score snapshot may briefly be inconsistent if a provider updates a score
+mid-traversal, but the resulting placement drift is negligible compared to
+the cost of taking a global lock.
+.Sh COMPATIBILITY
+.Nm
+requires and is enabled with
+.Cd options HMP .
+It is safe to enable
+.Nm
+on homogeneous hardware:
+the default capacity provider will assign equal capacity to every CPU,
+no score provider will be selected, and the scheduler will behave as if
+.Nm
+were disabled.
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr sched_4bsd 4 ,
+.Xr sched_ule 4 ,
+.Xr smp 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 15.1 .
+.Sh AUTHORS
+The
+.Nm
+framework was developed by
+.An Minsoo Choo Aq Mt minsoochoo0122@proton.me
+under sponsorship from the
+.Fx
+Foundation.
