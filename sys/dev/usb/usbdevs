@@ -705,6 +705,7 @@ vendor WIENERPLEINBAUS	0x16dc	WIENER Plein & Baus GmbH.
 vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
+vendor ASM2		0x174c	ASMedia Technology
 vendor ASUS2		0x1761	ASUS
 vendor SWEEX2		0x177f	Sweex
 vendor METAGEEK		0x1781	MetaGeek
@@ -1284,6 +1285,9 @@ product ASIX AX88772		0x7720	AX88772
 product ASIX AX88772A		0x772a	AX88772A USB 2.0 10/100 Ethernet
 product ASIX AX88772B		0x772b	AX88772B USB 2.0 10/100 Ethernet
 product ASIX AX88772B_1		0x7e2b	AX88772B USB 2.0 10/100 Ethernet
+
+/* ASMedia products */
+product ASM2 ASM1074_SS		0x3074	ASM1074 SuperSpeed Hub
 
 /* ASUS products */
 product ASUS2 USBN11		0x0b05	USB-N11
