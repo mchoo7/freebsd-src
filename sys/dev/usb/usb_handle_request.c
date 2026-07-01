@@ -434,6 +434,9 @@ usb_handle_remote_wakeup(struct usb_xfer *xfer, uint8_t is_on)
 	udev = xfer->xroot->udev;
 	bus = udev->bus;
 
+	if (is_on && udev->flags.uq_bad_remote_wakeup)
+		return (USB_ERR_STALLED);
+
 	USB_BUS_LOCK(bus);
 
 	if (is_on) {
