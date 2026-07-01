@@ -1966,6 +1966,9 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	 */
 	usb_init_attach_arg(udev, &uaa);
 
+	if (usb_test_quirk(&uaa, UQ_BAD_REMOTE_WAKEUP)) {
+		udev->flags.uq_bad_remote_wakeup = 1;
+	}
 	if (usb_test_quirk(&uaa, UQ_BUS_POWERED)) {
 		udev->flags.uq_bus_powered = 1;
 	}
@@ -2865,7 +2868,8 @@ usb_peer_can_wakeup(struct usb_device *udev)
 	const struct usb_config_descriptor *cdp;
 
 	cdp = udev->cdesc;
-	if ((cdp != NULL) && (udev->flags.usb_mode == USB_MODE_HOST)) {
+	if ((cdp != NULL) && (udev->flags.usb_mode == USB_MODE_HOST)
+	    && (udev->flags.uq_bad_remote_wakeup == 1)) {
 		return (cdp->bmAttributes & UC_REMOTE_WAKEUP);
 	}
 	return (0);			/* not supported */

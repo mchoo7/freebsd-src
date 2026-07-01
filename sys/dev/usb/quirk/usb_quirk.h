@@ -45,6 +45,7 @@ enum {
 	UQ_AU_NO_XU,		/* audio device has broken extension unit */
 	UQ_BAD_ADC,		/* bad audio spec version number */
 	UQ_BAD_AUDIO,		/* device claims audio class, but isn't */
+	UQ_BAD_REMOTE_WAKEUP,	/* device claims remote-wakeup, but isn't */
 	UQ_BROKEN_BIDIR,	/* printer has broken bidir mode */
 	UQ_BUS_POWERED,		/* device is bus powered, despite claim */
 	UQ_HID_IGNORE,		/* device should be ignored by hid class */

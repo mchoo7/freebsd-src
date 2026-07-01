@@ -95,6 +95,7 @@ struct usb_device_flags {
 	uint8_t	no_strings:1;		/* set if USB device does not support
 					 * strings */
 	uint8_t	remote_wakeup:1;	/* set if remote wakeup is enabled */
+	uint8_t uq_bad_remote_wakeup:1;	/* set if remote wakeup is broken */
 	uint8_t	uq_bus_powered:1;	/* set if BUS powered quirk is present */
 
 	/*
