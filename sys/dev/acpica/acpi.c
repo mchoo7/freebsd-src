@@ -994,27 +994,26 @@ acpi_probe_nomatch(device_t bus, device_t child)
  * XXX Disabled for now (see acpi_probe_nomatch for details).
  */
 static void
+acpi_driver_added_action(device_t child, void *arg __unused)
+{
+
+    if (device_get_state(child) != DS_NOTPRESENT)
+	return;
+#ifdef ACPI_ENABLE_POWERDOWN_NODRIVER
+    acpi_set_powerstate(child, ACPI_STATE_D0);
+    if (device_probe_and_attach(child) != 0)
+	acpi_set_powerstate(child, ACPI_STATE_D3);
+#else
+    device_probe_and_attach(child);
+#endif
+}
+
+static void
 acpi_driver_added(device_t dev, driver_t *driver)
 {
-    device_t child, *devlist;
-    int i, numdevs;
 
     DEVICE_IDENTIFY(driver, dev);
-    if (device_get_children(dev, &devlist, &numdevs))
-	    return;
-    for (i = 0; i < numdevs; i++) {
-	child = devlist[i];
-	if (device_get_state(child) == DS_NOTPRESENT) {
-#ifdef ACPI_ENABLE_POWERDOWN_NODRIVER
-	    acpi_set_powerstate(child, ACPI_STATE_D0);
-	    if (device_probe_and_attach(child) != 0)
-		acpi_set_powerstate(child, ACPI_STATE_D3);
-#else
-	    device_probe_and_attach(child);
-#endif
-	}
-    }
-    free(devlist, M_TEMP);
+    bus_foreach_child_safe(dev, acpi_driver_added_action, NULL);
 }
 
 /* Location hint for devctl(8) */
