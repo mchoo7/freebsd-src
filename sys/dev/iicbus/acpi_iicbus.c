@@ -645,24 +645,22 @@ acpi_iicbus_probe_nomatch(device_t bus, device_t child)
  * If a new driver has a chance to probe a child, first power it up.
  */
 static void
+acpi_iicbus_driver_added_action(device_t child, void *arg __unused)
+{
+
+	if (device_get_state(child) != DS_NOTPRESENT)
+		return;
+	acpi_set_powerstate(child, ACPI_STATE_D0);
+	if (device_probe_and_attach(child) != 0)
+		acpi_set_powerstate(child, ACPI_STATE_D3);
+}
+
+static void
 acpi_iicbus_driver_added(device_t dev, driver_t *driver)
 {
-	device_t child, *devlist;
-	int i, numdevs;
 
 	DEVICE_IDENTIFY(driver, dev);
-	if (device_get_children(dev, &devlist, &numdevs) != 0)
-		return;
-
-	for (i = 0; i < numdevs; i++) {
-		child = devlist[i];
-		if (device_get_state(child) == DS_NOTPRESENT) {
-			acpi_set_powerstate(child, ACPI_STATE_D0);
-			if (device_probe_and_attach(child) != 0)
-				acpi_set_powerstate(child, ACPI_STATE_D3);
-		}
-	}
-	free(devlist, M_TEMP);
+	bus_foreach_child_safe(dev, acpi_iicbus_driver_added_action, NULL);
 }
 
 static void
