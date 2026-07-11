@@ -596,6 +596,16 @@ int	bus_child_present(device_t child);
 int	bus_child_pnpinfo(device_t child, struct sbuf *sb);
 int	bus_child_location(device_t child, struct sbuf *sb);
 
+/**
+ * @brief Callback invoked once per child by bus_foreach_child_safe()
+ *
+ * @param child		the child device
+ * @param arg		the arg passed to bus_foreach_child_safe()
+ */
+typedef void bus_child_action_t(device_t child, void *arg);
+
+void	bus_foreach_child_safe(device_t dev, bus_child_action_t action,
+	    void *arg);
 void	bus_attach_children(device_t dev);
 void	bus_delayed_attach_children(device_t bus);
 int	bus_detach_children(device_t dev);

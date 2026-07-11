@@ -3472,6 +3472,86 @@ bus_generic_attach(device_t dev)
 }
 
 /**
+ * @brief Invoke a callback on each child of the given device, safely
+ *
+ * Like calling @p action on every child of @p dev, but safe even when
+ * invoking @p action on one child causes another device -- a sibling, or a
+ * device belonging to an entirely different bus -- to be deleted or
+ * reparented as a side effect.  A plain TAILQ_FOREACH() over dev->children
+ * (or a single device_get_children() snapshot walked in a loop) is not
+ * safe for this: a nested delete can free a device_t this function has not
+ * visited yet, and the next loop iteration would then dereference freed
+ * memory.
+ *
+ * This is done by re-snapshotting dev's children before every single call
+ * to @p action, rather than trusting one snapshot across the whole scan.
+ * Each child present at the start of the call is given at most one call to
+ * @p action; children deleted by another child's side effect before their
+ * turn are simply skipped, and children added afterwards are picked up
+ * too.
+ *
+ * @param dev		the parent device
+ * @param action	callback to invoke on each child
+ * @param arg		argument passed through to @p action
+ */
+void
+bus_foreach_child_safe(device_t dev, bus_child_action_t action, void *arg)
+{
+	device_t child, *devlist, *visited;
+	int i, j, numdevs, nvisited, visited_size;
+
+	visited = NULL;
+	nvisited = 0;
+	visited_size = 0;
+	for (;;) {
+		if (device_get_children(dev, &devlist, &numdevs) != 0)
+			break;
+
+		child = NULL;
+		for (i = 0; i < numdevs; i++) {
+			for (j = 0; j < nvisited; j++)
+				if (visited[j] == devlist[i])
+					break;
+			if (j == nvisited) {
+				child = devlist[i];
+				break;
+			}
+		}
+		free(devlist, M_TEMP);
+		if (child == NULL)
+			break;
+
+		if (nvisited == visited_size) {
+			device_t *newvisited;
+			int newsize;
+
+			newsize = visited_size ? visited_size * 2 : 16;
+			newvisited = malloc(newsize * sizeof(*newvisited),
+			    M_TEMP, M_NOWAIT);
+			if (newvisited == NULL)
+				break;
+			if (visited != NULL) {
+				memcpy(newvisited, visited,
+				    nvisited * sizeof(*newvisited));
+				free(visited, M_TEMP);
+			}
+			visited = newvisited;
+			visited_size = newsize;
+		}
+		visited[nvisited++] = child;
+
+		action(child, arg);
+	}
+	free(visited, M_TEMP);
+}
+
+static void
+bus_attach_child_action(device_t child, void *arg __unused)
+{
+	device_probe_and_attach(child);
+}
+
+/**
  * @brief Probe and attach all children of the given device
  *
  * This function attempts to attach a device driver to each unattached
@@ -3484,11 +3564,7 @@ bus_generic_attach(device_t dev)
 void
 bus_attach_children(device_t dev)
 {
-	device_t child;
-
-	TAILQ_FOREACH(child, &dev->children, link) {
-		device_probe_and_attach(child);
-	}
+	bus_foreach_child_safe(dev, bus_attach_child_action, NULL);
 }
 
 /**
