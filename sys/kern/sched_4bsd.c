@@ -493,7 +493,9 @@ schedcpu(void)
 			 * Increment sleep time (if sleeping).  We
 			 * ignore overflow, as above.
 			 */
-			if (TD_ON_RUNQ(td)) {
+			if (TD_IS_IDLETHREAD(td)) {
+				awake = 1;
+			} else if (TD_ON_RUNQ(td)) {
 				awake = 1;
 				td->td_flags &= ~TDF_DIDRUN;
 			} else if (TD_IS_RUNNING(td)) {
@@ -524,18 +526,15 @@ schedcpu(void)
 			}
 
 			if (awake) {
-				if (ts->ts_slptime > 1) {
-					/*
-					 * In an ideal world, this should not
-					 * happen, because whoever woke us
-					 * up from the long sleep should have
-					 * unwound the slptime and reset our
-					 * priority before we run at the stale
-					 * priority.  Should KASSERT at some
-					 * point when all the cases are fixed.
-					 */
-					updatepri(td);
-				}
+				/*
+				 * Whoever woke us up from the long sleep
+				 * should have unwound the slptime and reset
+				 * our priority before we run at the stale
+				 * priority.
+				 */
+				KASSERT(ts->ts_slptime <= 1,
+				    ("schedcpu: ts_slptime (%d) not unwound after long sleep for td %p",
+				    ts->ts_slptime, td));
 				ts->ts_slptime = 0;
 			} else
 				ts->ts_slptime++;
@@ -1355,6 +1354,12 @@ sched_4bsd_add(struct thread *td, int flags)
 		else
 			thread_lock_set(td, &sched_lock);
 	}
+	if (ts->ts_slptime > 1) {
+		updatepri(td);
+		resetpriority(td);
+	}
+	td->td_slptick = 0;
+	ts->ts_slptime = 0;
 	TD_SET_RUNQ(td);
 
 	/*
@@ -1450,6 +1455,12 @@ sched_4bsd_add(struct thread *td, int flags)
 		else
 			thread_lock_set(td, &sched_lock);
 	}
+	if (ts->ts_slptime > 1) {
+		updatepri(td);
+		resetpriority(td);
+	}
+	td->td_slptick = 0;
+	ts->ts_slptime = 0;
 	TD_SET_RUNQ(td);
 	CTR2(KTR_RUNQ, "sched_add: adding td_sched:%p (td:%p) to runq", ts, td);
 	ts->ts_rqcpu = NOCPU;
