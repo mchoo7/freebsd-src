@@ -514,12 +514,6 @@ struct sched_selection {
 
 void sched_instance_select(void);
 
-/*
- * Miscellaneous.
- */
-
-void ast_scheduler(struct thread *td, int tda);
-
 #endif /* _KERNEL */
 
 /* POSIX 1003.1b Process Scheduling */

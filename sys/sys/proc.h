@@ -503,7 +503,6 @@ enum {
 	TDA_SIGSUSPEND,
 	TDA_MOD3,		/* .. and after */
 	TDA_MOD4,
-	TDA_SCHED_PRIV,
 	TDA_ASYNC_EXIT,
 	TDA_MAX,
 };

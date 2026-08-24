@@ -119,6 +119,5 @@ struct thread	*runq_first_thread_range(struct runq *const rq,
 
 bool		 runq_not_empty(struct runq *);
 struct thread	*runq_choose(struct runq *);
-struct thread	*runq_choose_fuzz(struct runq *, int _fuzz);
 
 #endif
