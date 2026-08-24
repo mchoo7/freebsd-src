@@ -72,6 +72,9 @@
  */
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
+_Static_assert(NICE_WEIGHT * (PRIO_MAX - PRIO_MIN)
+    <= PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE,
+    "nice weight * nice range should be less than or equal to timeshare range");
 #define	ESTCPULIM(e)							\
 	min((e), INVERSE_ESTCPU_WEIGHT *				\
 	    (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE -			\
