@@ -518,10 +518,7 @@ schedcpu(void)
 #endif
 				ts->ts_cpticks = 0;
 			}
-			/*
-			 * If there are ANY running threads in this process,
-			 * then don't count it as sleeping.
-			 */
+
 			if (awake) {
 				/*
 				 * Whoever woke us up from the long sleep
