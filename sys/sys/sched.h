@@ -323,7 +323,7 @@ struct sched_instance {
 	void	(*init_ap)(void);
 	void	(*setup)(void);
 	void	(*initticks)(void);
-	void	(*schedcpu)(void);
+	void	(*sysinit)(void); /* should only be called from sched_shim.c */
 };
 
 extern const struct sched_instance *active_sched;
