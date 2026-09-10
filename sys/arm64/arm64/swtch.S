@@ -37,6 +37,9 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/proc.h>
+#include <machine/trap_cfi.h>
+
+	.cfi_sections .eh_frame
 
 .macro clear_step_flag pcbflags, tmp
 	tbz	\pcbflags, #PCB_SINGLE_STEP_SHIFT, 999f
@@ -227,13 +230,14 @@ ENTRY(cpu_switch)
 	ret
 END(cpu_switch)
 
-ENTRY(fork_trampoline)
+ENTRY(fork_trampoline, trap_cfi_entry trapframe)
 	mov	x0, x19
 	mov	x1, x20
 	mov	x2, sp
 	mov	fp, #0	/* Stack traceback stops here. */
 	bl	_C_LABEL(fork_exit)
 
+.fork_trampoline_return:
 	/*
 	 * Disable interrupts as we are setting userspace specific
 	 * state that we won't handle correctly in an interrupt while
@@ -279,6 +283,7 @@ ENTRY(fork_trampoline)
 	ldp	x28, x29, [sp, #TF_X + 28 * 8]
 
 	add	sp, sp, #(TF_SIZE)
+	.cfi_def_cfa_offset 0
 
 	/*
 	 * No need for interrupts reenabling since PSR
@@ -287,6 +292,21 @@ ENTRY(fork_trampoline)
 	ERET
 	
 END(fork_trampoline)
+
+ENTRY(fork_trampoline_kthread, trap_cfi_entry terminal)
+	mov	x0, x19
+	mov	x1, x20
+	mov	x2, sp
+	mov	fp, #0
+	bl	_C_LABEL(fork_exit)
+	/*
+	 * Keep fork_exit's return PC covered by terminal CFI.  The nop gives
+	 * the post-return trapframe CFI a distinct instruction address.
+	 */
+	nop
+	trap_cfi_trapframe
+	b	.fork_trampoline_return
+END(fork_trampoline_kthread)
 
 ENTRY(savectx)
 	/* Store the callee-saved registers */
