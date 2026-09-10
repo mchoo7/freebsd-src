@@ -66,6 +66,8 @@
  *	#include <powerpc/booke/trap_subr.S>
  */
 
+#include <machine/trap_cfi.h>
+
 /*
  * SPRG usage notes
  *
@@ -1031,6 +1033,7 @@ int_debug_int:
  * Common trap code
  ****************************************************************************/
 trap_common:
+	trap_cfi_entry ., full
 	/* Call C trap dispatcher */
 	GET_TOCBASE(%r2)
 	addi	%r3, %r1, CALLSIZE
@@ -1065,6 +1068,7 @@ CNAME(asttrapexit):
 1:
 	FRAME_LEAVE(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	rfi
+	trap_cfi_end .
 
 
 #if defined(KDB)
@@ -1073,6 +1077,7 @@ CNAME(asttrapexit):
  */
 	/* .globl	CNAME(breakpoint)*/
 ASENTRY_NOPROF(breakpoint)
+	trap_cfi_entry breakpoint, attached
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
@@ -1106,6 +1111,7 @@ ASENTRY_NOPROF(breakpoint)
  */
 dbtrap:
 	FRAME_SETUP(SPR_SPRG1, PC_DBSAVE, EXC_DEBUG)
+	trap_cfi_full
 /* Call C trap code: */
 	GET_TOCBASE(%r2)
 	addi	%r3, %r1, CALLSIZE

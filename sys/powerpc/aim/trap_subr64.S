@@ -38,6 +38,8 @@
  *	#include <powerpc/aim/trap_subr.S>
  */
 
+#include <machine/trap_cfi.h>
+
 /* Locate the per-CPU data structure */
 #define GET_CPUINFO(r)  \
         mfsprg0  r
@@ -132,7 +134,7 @@ restore_kernsrs:
  * NOTE: SPRG1 is never used while the MMU is on, making it safe to reuse
  * in any real-mode fault handler, including those handling double faults.
  */
-#define	FRAME_SETUP(savearea)						\
+#define	FRAME_SETUP(savearea, emit_cfi)					\
 /* Have to enable translation to allow access of kernel stack: */	\
 	GET_CPUINFO(%r31);						\
 	mfsrr0	%r30;							\
@@ -145,11 +147,17 @@ restore_kernsrs:
 	mtmsr	%r30;			/* stack can now be accessed */	\
 	isync;								\
 	stdu	%r31,-(FRAMELEN+288)(%r1); /* save it in the callframe */ \
+	.if emit_cfi; .cfi_def_cfa %r1, CFI_TF_SIZE; .endif;		\
 	std	%r0, FRAME_0+48(%r1);	/* save r0 in the trapframe */	\
+	.if emit_cfi; trap_cfi_saved 0, FRAME_0; .endif;		\
 	std	%r31,FRAME_1+48(%r1);	/* save SP   "      "       */	\
+	.if emit_cfi; trap_cfi_saved 1, FRAME_1; .endif;		\
 	std	%r2, FRAME_2+48(%r1);	/* save r2   "      "       */	\
+	.if emit_cfi; trap_cfi_saved 2, FRAME_2; .endif;		\
 	std	%r28,FRAME_LR+48(%r1);	/* save LR   "      "       */	\
+	.if emit_cfi; trap_cfi_saved CFI_LR, FRAME_LR; .endif;	\
 	std	%r29,FRAME_CR+48(%r1);	/* save CR   "      "       */	\
+	.if emit_cfi; trap_cfi_saved CFI_CR, FRAME_CR; .endif;	\
 	GET_CPUINFO(%r2);						\
 	ld	%r27,(savearea+CPUSAVE_R27)(%r2); /* get saved r27 */	\
 	ld	%r28,(savearea+CPUSAVE_R28)(%r2); /* get saved r28 */	\
@@ -157,34 +165,63 @@ restore_kernsrs:
 	ld	%r30,(savearea+CPUSAVE_R30)(%r2); /* get saved r30 */	\
 	ld	%r31,(savearea+CPUSAVE_R31)(%r2); /* get saved r31 */	\
 	std	%r3,  FRAME_3+48(%r1);	/* save r3-r31 */		\
+	.if emit_cfi; trap_cfi_saved 3, FRAME_3; .endif;		\
 	std	%r4,  FRAME_4+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 4, FRAME_4; .endif;		\
 	std	%r5,  FRAME_5+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 5, FRAME_5; .endif;		\
 	std	%r6,  FRAME_6+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 6, FRAME_6; .endif;		\
 	std	%r7,  FRAME_7+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 7, FRAME_7; .endif;		\
 	std	%r8,  FRAME_8+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 8, FRAME_8; .endif;		\
 	std	%r9,  FRAME_9+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 9, FRAME_9; .endif;		\
 	std	%r10, FRAME_10+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 10, FRAME_10; .endif;		\
 	std	%r11, FRAME_11+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 11, FRAME_11; .endif;		\
 	std	%r12, FRAME_12+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 12, FRAME_12; .endif;		\
 	std	%r13, FRAME_13+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 13, FRAME_13; .endif;		\
 	std	%r14, FRAME_14+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 14, FRAME_14; .endif;		\
 	std	%r15, FRAME_15+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 15, FRAME_15; .endif;		\
 	std	%r16, FRAME_16+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 16, FRAME_16; .endif;		\
 	std	%r17, FRAME_17+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 17, FRAME_17; .endif;		\
 	std	%r18, FRAME_18+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 18, FRAME_18; .endif;		\
 	std	%r19, FRAME_19+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 19, FRAME_19; .endif;		\
 	std	%r20, FRAME_20+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 20, FRAME_20; .endif;		\
 	std	%r21, FRAME_21+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 21, FRAME_21; .endif;		\
 	std	%r22, FRAME_22+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 22, FRAME_22; .endif;		\
 	std	%r23, FRAME_23+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 23, FRAME_23; .endif;		\
 	std	%r24, FRAME_24+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 24, FRAME_24; .endif;		\
 	std	%r25, FRAME_25+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 25, FRAME_25; .endif;		\
 	std	%r26, FRAME_26+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 26, FRAME_26; .endif;		\
 	std	%r27, FRAME_27+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 27, FRAME_27; .endif;		\
 	std	%r28, FRAME_28+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 28, FRAME_28; .endif;		\
 	std	%r29, FRAME_29+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 29, FRAME_29; .endif;		\
 	std	%r30, FRAME_30+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 30, FRAME_30; .endif;		\
 	std	%r31, FRAME_31+48(%r1);					\
+	.if emit_cfi; trap_cfi_saved 31, FRAME_31; .endif;		\
 	ld	%r28,(savearea+CPUSAVE_AIM_DAR)(%r2);  /* saved DAR */	\
 	ld	%r29,(savearea+CPUSAVE_AIM_DSISR)(%r2);/* saved DSISR */\
 	ld	%r30,(savearea+CPUSAVE_SRR0)(%r2); /* saved SRR0 */	\
@@ -193,11 +230,14 @@ restore_kernsrs:
 	mfctr	%r4;							\
 	mfsprg3	%r5;							\
 	std	%r3, FRAME_XER+48(1);	/* save xer/ctr/exc */		\
+	.if emit_cfi; trap_cfi_saved CFI_XER, FRAME_XER; .endif;	\
 	std	%r4, FRAME_CTR+48(1);					\
+	.if emit_cfi; trap_cfi_saved CFI_CTR, FRAME_CTR; .endif;	\
 	std	%r5, FRAME_EXC+48(1);					\
 	std	%r28,FRAME_AIM_DAR+48(1);				\
 	std	%r29,FRAME_AIM_DSISR+48(1); /* save dsisr/srr0/srr1 */	\
 	std	%r30,FRAME_SRR0+48(1);					\
+	.if emit_cfi; trap_cfi_saved CFI_PC, FRAME_SRR0; .endif;	\
 	std	%r31,FRAME_SRR1+48(1);					\
 	ld	%r13,PC_CURTHREAD(%r2)	/* set kernel curthread */
 
@@ -253,6 +293,7 @@ restore_kernsrs:
 	ld	%r2, FRAME_2+48(%r1);					\
 	ld	%r0, FRAME_0+48(%r1);					\
 	ld	%r1, FRAME_1+48(%r1);					\
+	.cfi_def_cfa %r1, 0; .cfi_undefined CFI_PC;			\
 /* Can't touch %r1 from here on */					\
 	mtsprg3	%r3;			/* save r3 */			\
 /* Disable translation, machine check and recoverability: */		\
@@ -849,9 +890,10 @@ u_trap:
  * Now the common trap catching code.
  */
 k_trap:
-	FRAME_SETUP(PC_TEMPSAVE)
+	FRAME_SETUP(PC_TEMPSAVE, 0)
 /* Call C interrupt dispatcher: */
 trapagain:
+	trap_cfi_entry ., full
 	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(powerpc_interrupt)
@@ -887,12 +929,14 @@ CNAME(asttrapexit):
 1:
 	FRAME_LEAVE(PC_TEMPSAVE)
 	rfid
+	trap_cfi_end .
 
 #if defined(KDB)
 /*
  * Deliberate entry to dbtrap
  */
 ASENTRY_NOPROF(breakpoint)
+	trap_cfi_entry breakpoint, attached
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
@@ -925,7 +969,8 @@ dbtrap:
 	ld	%r1,TOC_REF(trapstk)@l(%r1)
 	addi	%r1,%r1,(TRAPSTKSZ-48)
 
-	FRAME_SETUP(PC_DBSAVE)
+	FRAME_SETUP(PC_DBSAVE, 1)
+	trap_cfi_full
 /* Call C trap code: */
 	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48

@@ -38,6 +38,8 @@
  *	#include <powerpc/aim/trap_subr.S>
  */
 
+#include <machine/trap_cfi.h>
+
 /*
  * Save/restore segment registers
  */
@@ -784,6 +786,7 @@ k_trap:
 	mtsr	USER_SR,%r30; sync; isync
 /* Call C interrupt dispatcher: */
 trapagain:
+	trap_cfi_entry ., full
 	addi	%r3,%r1,8
 	bl	CNAME(powerpc_interrupt)
 	.globl	CNAME(trapexit)		/* backtrace code sentinel */
@@ -823,6 +826,7 @@ CNAME(rfi_patch1):
 	.globl	CNAME(rfid_patch)
 CNAME(rfid_patch):
 	rfid
+	trap_cfi_end .
 
 #if defined(KDB)
 /*
@@ -830,6 +834,7 @@ CNAME(rfid_patch):
  */
 	.globl	CNAME(breakpoint)
 CNAME(breakpoint):
+	trap_cfi_entry breakpoint, empty
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
@@ -861,6 +866,7 @@ dbtrap:
 	addi	%r1,%r1,TRAPSTKSZ-16
 
 	FRAME_SETUP(PC_DBSAVE)
+	trap_cfi_full
 /* Call C trap code: */
 	addi	%r3,%r1,8
 	bl	CNAME(db_trap_glue)
@@ -926,4 +932,5 @@ CNAME(dblow):
 	mtlr	%r1
 	blrl
 CNAME(dbend):
+	trap_cfi_end .
 #endif /* KDB */
