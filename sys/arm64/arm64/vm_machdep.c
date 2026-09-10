@@ -109,7 +109,11 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* Set the return value registers for fork() */
 	td2->td_pcb->pcb_x[PCB_X19] = (uintptr_t)fork_return;
 	td2->td_pcb->pcb_x[PCB_X20] = (uintptr_t)td2;
-	td2->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
+	if ((td2->td_pflags & TDP_KTHREAD) != 0)
+		td2->td_pcb->pcb_x[PCB_LR] =
+		    (uintptr_t)fork_trampoline_kthread;
+	else
+		td2->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
 	td2->td_pcb->pcb_sp = (uintptr_t)td2->td_frame;
 
 	vfp_new_thread(td2, td1, true);
@@ -182,7 +186,10 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	td->td_pcb->pcb_x[PCB_X19] = (uintptr_t)fork_return;
 	td->td_pcb->pcb_x[PCB_X20] = (uintptr_t)td;
-	td->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
+	if ((td->td_pflags & TDP_KTHREAD) != 0)
+		td->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline_kthread;
+	else
+		td->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
 
 	/* Update VFP state for the new thread */
