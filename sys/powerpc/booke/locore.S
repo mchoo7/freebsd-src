@@ -974,4 +974,6 @@ TOC_ENTRY(bp_kernload)
 	.globl	kernbase
 	.set	kernbase, KERNBASE
 
+	.cfi_sections .eh_frame
+
 #include <powerpc/booke/trap_subr.S>
