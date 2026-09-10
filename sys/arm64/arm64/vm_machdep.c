@@ -182,7 +182,10 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	td->td_pcb->pcb_x[PCB_X19] = (uintptr_t)fork_return;
 	td->td_pcb->pcb_x[PCB_X20] = (uintptr_t)td;
-	td->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
+	if ((td->td_pflags & TDP_KTHREAD) != 0)
+		td->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline_kthread;
+	else
+		td->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
 
 	/* Update VFP state for the new thread */
