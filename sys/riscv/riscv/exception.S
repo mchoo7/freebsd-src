@@ -37,13 +37,19 @@
 
 #include <machine/trap.h>
 #include <machine/riscvreg.h>
+#include <machine/trap_cfi.h>
 
 .macro save_registers mode
 	addi	sp, sp, -(TF_SIZE)
+	.cfi_def_cfa_offset CFI_TF_SIZE
+	.cfi_undefined sp
 
 	sd	ra, (TF_RA)(sp)
+	trap_cfi_saved ra, TF_RA
 	sd	tp, (TF_TP)(sp)
+	trap_cfi_saved tp, TF_TP
 	sd	gp, (TF_GP)(sp)
+	trap_cfi_saved gp, TF_GP
 
 .if \mode == 0	/* We came from userspace. */
 .option push
@@ -57,49 +63,79 @@
 .endif
 
 	sd	t0, (TF_T + 0 * 8)(sp)
+	trap_cfi_saved t0, TF_T + 0 * 8
 	sd	t1, (TF_T + 1 * 8)(sp)
+	trap_cfi_saved t1, TF_T + 1 * 8
 	sd	t2, (TF_T + 2 * 8)(sp)
+	trap_cfi_saved t2, TF_T + 2 * 8
 	sd	t3, (TF_T + 3 * 8)(sp)
+	trap_cfi_saved t3, TF_T + 3 * 8
 	sd	t4, (TF_T + 4 * 8)(sp)
+	trap_cfi_saved t4, TF_T + 4 * 8
 	sd	t5, (TF_T + 5 * 8)(sp)
+	trap_cfi_saved t5, TF_T + 5 * 8
 	sd	t6, (TF_T + 6 * 8)(sp)
+	trap_cfi_saved t6, TF_T + 6 * 8
 
 	sd	s0, (TF_S + 0 * 8)(sp)
+	trap_cfi_saved s0, TF_S + 0 * 8
 	sd	s1, (TF_S + 1 * 8)(sp)
+	trap_cfi_saved s1, TF_S + 1 * 8
 	sd	s2, (TF_S + 2 * 8)(sp)
+	trap_cfi_saved s2, TF_S + 2 * 8
 	sd	s3, (TF_S + 3 * 8)(sp)
+	trap_cfi_saved s3, TF_S + 3 * 8
 	sd	s4, (TF_S + 4 * 8)(sp)
+	trap_cfi_saved s4, TF_S + 4 * 8
 	sd	s5, (TF_S + 5 * 8)(sp)
+	trap_cfi_saved s5, TF_S + 5 * 8
 	sd	s6, (TF_S + 6 * 8)(sp)
+	trap_cfi_saved s6, TF_S + 6 * 8
 	sd	s7, (TF_S + 7 * 8)(sp)
+	trap_cfi_saved s7, TF_S + 7 * 8
 	sd	s8, (TF_S + 8 * 8)(sp)
+	trap_cfi_saved s8, TF_S + 8 * 8
 	sd	s9, (TF_S + 9 * 8)(sp)
+	trap_cfi_saved s9, TF_S + 9 * 8
 	sd	s10, (TF_S + 10 * 8)(sp)
+	trap_cfi_saved s10, TF_S + 10 * 8
 	sd	s11, (TF_S + 11 * 8)(sp)
+	trap_cfi_saved s11, TF_S + 11 * 8
 
 	sd	a0, (TF_A + 0 * 8)(sp)
+	trap_cfi_saved a0, TF_A + 0 * 8
 	sd	a1, (TF_A + 1 * 8)(sp)
+	trap_cfi_saved a1, TF_A + 1 * 8
 	sd	a2, (TF_A + 2 * 8)(sp)
+	trap_cfi_saved a2, TF_A + 2 * 8
 	sd	a3, (TF_A + 3 * 8)(sp)
+	trap_cfi_saved a3, TF_A + 3 * 8
 	sd	a4, (TF_A + 4 * 8)(sp)
+	trap_cfi_saved a4, TF_A + 4 * 8
 	sd	a5, (TF_A + 5 * 8)(sp)
+	trap_cfi_saved a5, TF_A + 5 * 8
 	sd	a6, (TF_A + 6 * 8)(sp)
+	trap_cfi_saved a6, TF_A + 6 * 8
 	sd	a7, (TF_A + 7 * 8)(sp)
+	trap_cfi_saved a7, TF_A + 7 * 8
 
 .if \mode == 1
 	/* Store kernel sp */
 	li	t1, TF_SIZE
 	add	t0, sp, t1
 	sd	t0, (TF_SP)(sp)
+	trap_cfi_saved sp, TF_SP
 .else
 	/* Store user sp */
 	csrr	t0, sscratch
 	sd	t0, (TF_SP)(sp)
+	trap_cfi_saved sp, TF_SP
 .endif
 	li	t0, 0
 	csrw	sscratch, t0
 	csrr	t0, sepc
 	sd	t0, (TF_SEPC)(sp)
+	.cfi_offset CFI_RA_COLUMN, TF_SEPC - CFI_TF_SIZE
 	csrr	t0, sstatus
 	sd	t0, (TF_SSTATUS)(sp)
 .if \mode == 1
@@ -179,6 +215,8 @@
 	ld	a7, (TF_A + 7 * 8)(sp)
 
 	addi	sp, sp, (TF_SIZE)
+	/* CFI_TF_SIZE excludes the stack-alignment padding in TF_SIZE. */
+	.cfi_def_cfa_offset CFI_TF_SIZE - TF_SIZE
 .endm
 
 .macro	do_ast
@@ -217,19 +255,25 @@ ENTRY(cpu_exception_handler)
 END(cpu_exception_handler)
 
 ENTRY(cpu_exception_handler_supervisor)
+	trap_cfi_entry cpu_exception_handler_supervisor, empty
 	save_registers 1
 	mv	a0, sp
 	call	_C_LABEL(do_trap_supervisor)
 	load_registers 1
 	sret
+	trap_cfi_end cpu_exception_handler_supervisor
 END(cpu_exception_handler_supervisor)
 
 ENTRY(cpu_exception_handler_user)
+	trap_cfi_entry cpu_exception_handler_user, empty
 	save_registers 0
 	mv	a0, sp
 	call	_C_LABEL(do_trap_user)
 	do_ast
 	load_registers 0
 	csrrw	sp, sscratch, sp
+	/* The trapframe is no longer addressable after switching to user sp. */
+	.cfi_undefined CFI_RA_COLUMN
 	sret
+	trap_cfi_end cpu_exception_handler_user
 END(cpu_exception_handler_user)

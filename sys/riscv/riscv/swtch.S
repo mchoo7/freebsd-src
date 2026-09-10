@@ -38,6 +38,8 @@
 #include <machine/asm.h>
 #include <machine/riscvreg.h>
 #include <machine/pte.h>
+#include <machine/trap_cfi.h>
+
 .macro __fpe_state_save p
 	/*
 	 * Enable FPE usage in supervisor mode,
@@ -415,6 +417,7 @@ END(cpu_switch)
  */
 
 ENTRY(fork_trampoline)
+	trap_cfi_entry fork_trampoline, full
 	mv	a0, s0
 	mv	a1, s1
 	mv	a2, sp
@@ -475,13 +478,28 @@ ENTRY(fork_trampoline)
 
 	/* Save kernel stack so we can use it doing a user trap */
 	addi	sp, sp, TF_SIZE
+	.cfi_def_cfa_offset CFI_TF_SIZE - TF_SIZE
 	csrw	sscratch, sp
 
 	/* Load user stack */
 	ld	sp, (TF_SP - TF_SIZE)(sp)
+	/* The trapframe is no longer addressable after switching to user sp. */
+	.cfi_undefined CFI_RA_COLUMN
 
 	sret
+	trap_cfi_end fork_trampoline
 END(fork_trampoline)
+
+ENTRY(fork_trampoline_kthread)
+	trap_cfi_entry fork_trampoline_kthread, terminal
+	mv	a0, s0
+	mv	a1, s1
+	mv	a2, sp
+	call	_C_LABEL(fork_exit)
+	ebreak
+1:	j	1b
+	trap_cfi_end fork_trampoline_kthread
+END(fork_trampoline_kthread)
 
 ENTRY(savectx)
 	/* Store ra, sp and the callee-saved registers */
