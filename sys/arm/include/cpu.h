@@ -716,6 +716,7 @@ struct arm_boot_params {
 
 void	arm_vector_init(vm_offset_t, int);
 void	fork_trampoline(void);
+void	fork_trampoline_kthread(void);
 void	identify_arm_cpu(void);
 void	*initarm(struct arm_boot_params *);
 
