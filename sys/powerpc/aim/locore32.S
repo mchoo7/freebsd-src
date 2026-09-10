@@ -120,4 +120,6 @@ __start:
 	/* mi_startup() does not return */
 	b	.
 
+	.cfi_sections .eh_frame
+
 #include <powerpc/aim/trap_subr32.S>
