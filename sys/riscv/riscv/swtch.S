@@ -38,6 +38,10 @@
 #include <machine/asm.h>
 #include <machine/riscvreg.h>
 #include <machine/pte.h>
+#include <machine/trap_cfi.h>
+
+	.cfi_sections .eh_frame
+
 .macro __fpe_state_save p
 	/*
 	 * Enable FPE usage in supervisor mode,
@@ -415,11 +419,13 @@ END(cpu_switch)
  */
 
 ENTRY(fork_trampoline)
+	trap_cfi_entry trapframe
 	mv	a0, s0
 	mv	a1, s1
 	mv	a2, sp
 	call	_C_LABEL(fork_exit)
 
+.fork_trampoline_return:
 	/* Restore sstatus */
 	ld	t0, (TF_SSTATUS)(sp)
 	/* Ensure interrupts disabled */
@@ -475,13 +481,31 @@ ENTRY(fork_trampoline)
 
 	/* Save kernel stack so we can use it doing a user trap */
 	addi	sp, sp, TF_SIZE
+	.cfi_def_cfa_offset CFI_TF_SIZE - TF_SIZE
 	csrw	sscratch, sp
 
 	/* Load user stack */
 	ld	sp, (TF_SP - TF_SIZE)(sp)
+	/* The trapframe is no longer addressable after switching to user sp. */
+	.cfi_undefined CFI_RA_COLUMN
 
 	sret
 END(fork_trampoline)
+
+ENTRY(fork_trampoline_kthread)
+	trap_cfi_entry terminal
+	mv	a0, s0
+	mv	a1, s1
+	mv	a2, sp
+	call	_C_LABEL(fork_exit)
+	/*
+	 * Keep fork_exit's return PC covered by terminal CFI.  The nop gives
+	 * the post-return trapframe CFI a distinct instruction address.
+	 */
+	nop
+	trap_cfi_trapframe
+	j	.fork_trampoline_return
+END(fork_trampoline_kthread)
 
 ENTRY(savectx)
 	/* Store ra, sp and the callee-saved registers */
