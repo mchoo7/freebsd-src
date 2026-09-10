@@ -110,7 +110,8 @@ db_stack_trace_cmd(struct thread *td, struct unwind_state *frame)
 			continue;
 		}
 
-		if (strcmp(name, "fork_trampoline") == 0)
+		if (strcmp(name, "fork_trampoline") == 0 ||
+		    strcmp(name, "fork_trampoline_kthread") == 0)
 			break;
 
 		if (!unwind_frame(td, frame))

@@ -126,7 +126,10 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* Set the return value registers for fork() */
 	td2->td_pcb->pcb_s[0] = (uintptr_t)fork_return;
 	td2->td_pcb->pcb_s[1] = (uintptr_t)td2;
-	td2->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
+	if ((td2->td_pflags & TDP_KTHREAD) != 0)
+		td2->td_pcb->pcb_ra = (uintptr_t)fork_trampoline_kthread;
+	else
+		td2->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
 	td2->td_pcb->pcb_sp = (uintptr_t)td2->td_frame;
 
 	if ((td1->td_pcb->pcb_vsflags & PCB_VS_STARTED) != 0)
@@ -189,7 +192,10 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	td->td_pcb->pcb_s[0] = (uintptr_t)fork_return;
 	td->td_pcb->pcb_s[1] = (uintptr_t)td;
-	td->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
+	if ((td->td_pflags & TDP_KTHREAD) != 0)
+		td->td_pcb->pcb_ra = (uintptr_t)fork_trampoline_kthread;
+	else
+		td->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
 
 	/* Setup to release spin count in fork_exit(). */
@@ -265,7 +271,6 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 
 	td->td_pcb->pcb_s[0] = (uintptr_t)func;
 	td->td_pcb->pcb_s[1] = (uintptr_t)arg;
-	td->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
 }
 
