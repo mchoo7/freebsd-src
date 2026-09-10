@@ -124,7 +124,10 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	pmap_set_pcb_pagedir(vmspace_pmap(p2->p_vmspace), pcb2);
 	pcb2->pcb_regs.sf_r4 = (register_t)fork_return;
 	pcb2->pcb_regs.sf_r5 = (register_t)td2;
-	pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	if ((td2->td_pflags & TDP_KTHREAD) != 0)
+		pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline_kthread;
+	else
+		pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
 	pcb2->pcb_regs.sf_sp = (register_t)STACKALIGN(td2->td_frame);
 	pcb2->pcb_regs.sf_tpidrurw = (register_t)get_tls();
 
@@ -189,7 +192,10 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	td->td_pcb->pcb_regs.sf_r4 = (register_t)fork_return;
 	td->td_pcb->pcb_regs.sf_r5 = (register_t)td;
-	td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	if ((td->td_pflags & TDP_KTHREAD) != 0)
+		td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline_kthread;
+	else
+		td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline;
 	td->td_pcb->pcb_regs.sf_sp = (register_t)STACKALIGN(td->td_frame);
 
 	td->td_frame->tf_spsr &= ~PSR_C;
