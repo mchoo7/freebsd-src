@@ -32,8 +32,20 @@
 
 #include "assym.inc"
 #include <sys/intr.h>
+#include <machine/trap_cfi.h>
 
 	.text
+
+.macro	trap_entry name
+	.globl	\name
+	.text
+	.align	2
+	.type	\name, #function
+\name:
+	trap_cfi_entry \name, full
+	BTI_C
+	DTRACE_NOP
+.endm
 
 /*
  * This is limited to 28 instructions as it's placed in the exception vector
@@ -46,20 +58,51 @@
 .else
 	stp	x0,  x1,  [sp, #-(TF_SIZE - TF_X)]!
 .endif
+	.cfi_def_cfa_offset (TF_SIZE - TF_X)
+	trap_cfi_saved x0, TF_X
+	trap_cfi_saved x1, TF_X + 8
 	stp	x2,  x3,  [sp, #(2  * 8)]
+	trap_cfi_saved x2, TF_X + 2 * 8
+	trap_cfi_saved x3, TF_X + 3 * 8
 	stp	x4,  x5,  [sp, #(4  * 8)]
+	trap_cfi_saved x4, TF_X + 4 * 8
+	trap_cfi_saved x5, TF_X + 5 * 8
 	stp	x6,  x7,  [sp, #(6  * 8)]
+	trap_cfi_saved x6, TF_X + 6 * 8
+	trap_cfi_saved x7, TF_X + 7 * 8
 	stp	x8,  x9,  [sp, #(8  * 8)]
+	trap_cfi_saved x8, TF_X + 8 * 8
+	trap_cfi_saved x9, TF_X + 9 * 8
 	stp	x10, x11, [sp, #(10 * 8)]
+	trap_cfi_saved x10, TF_X + 10 * 8
+	trap_cfi_saved x11, TF_X + 11 * 8
 	stp	x12, x13, [sp, #(12 * 8)]
+	trap_cfi_saved x12, TF_X + 12 * 8
+	trap_cfi_saved x13, TF_X + 13 * 8
 	stp	x14, x15, [sp, #(14 * 8)]
+	trap_cfi_saved x14, TF_X + 14 * 8
+	trap_cfi_saved x15, TF_X + 15 * 8
 	stp	x16, x17, [sp, #(16 * 8)]
+	trap_cfi_saved x16, TF_X + 16 * 8
+	trap_cfi_saved x17, TF_X + 17 * 8
 	stp	x18, x19, [sp, #(18 * 8)]
+	trap_cfi_saved x18, TF_X + 18 * 8
+	trap_cfi_saved x19, TF_X + 19 * 8
 	stp	x20, x21, [sp, #(20 * 8)]
+	trap_cfi_saved x20, TF_X + 20 * 8
+	trap_cfi_saved x21, TF_X + 21 * 8
 	stp	x22, x23, [sp, #(22 * 8)]
+	trap_cfi_saved x22, TF_X + 22 * 8
+	trap_cfi_saved x23, TF_X + 23 * 8
 	stp	x24, x25, [sp, #(24 * 8)]
+	trap_cfi_saved x24, TF_X + 24 * 8
+	trap_cfi_saved x25, TF_X + 25 * 8
 	stp	x26, x27, [sp, #(26 * 8)]
+	trap_cfi_saved x26, TF_X + 26 * 8
+	trap_cfi_saved x27, TF_X + 27 * 8
 	stp	x28, x29, [sp, #(28 * 8)]
+	trap_cfi_saved x28, TF_X + 28 * 8
+	trap_cfi_saved x29, TF_X + 29 * 8
 .if \el == 1
 	add	x18, sp, #(TF_SIZE - TF_X + 128)
 .else
@@ -70,7 +113,12 @@
 	mrs	x12, esr_el1
 	mrs	x13, far_el1
 	stp	x18,  lr, [sp, #(TF_SP - TF_X)]!
+	.cfi_def_cfa_offset TF_SIZE
+	trap_cfi_saved 31, TF_SP
+	trap_cfi_saved x30, TF_LR
 	stp	x10, x11, [sp, #(TF_ELR)]
+	trap_cfi_saved CFI_PC, TF_ELR
+	trap_cfi_saved CFI_CPSR, TF_SPSR
 	stp	x12, x13, [sp, #(TF_ESR)]
 	mrs	x18, tpidr_el1
 .endm
@@ -195,8 +243,10 @@
 .endif
 .if \el == 0
 	add	sp, sp, #(TF_SIZE)
+	.cfi_def_cfa_offset 0
 .else
 	mov	sp, x18
+	.cfi_def_cfa sp, -128
 	mrs	x18, tpidr_el1
 .endif
 .endm
@@ -252,7 +302,7 @@
 #define	KMSAN_LEAVE
 #endif
 
-ENTRY(handle_el1h_sync)
+trap_entry handle_el1h_sync
 	save_registers 1
 	KMSAN_ENTER
 	ldr	x0, [x18, #PC_CURTHREAD]
@@ -261,9 +311,9 @@ ENTRY(handle_el1h_sync)
 	KMSAN_LEAVE
 	restore_registers 1
 	ERET
-END(handle_el1h_sync)
+	trap_cfi_end handle_el1h_sync
 
-ENTRY(handle_el1h_irq)
+trap_entry handle_el1h_irq
 	save_registers 1
 	KMSAN_ENTER
 	mov	x0, sp
@@ -272,9 +322,9 @@ ENTRY(handle_el1h_irq)
 	KMSAN_LEAVE
 	restore_registers 1
 	ERET
-END(handle_el1h_irq)
+	trap_cfi_end handle_el1h_irq
 
-ENTRY(handle_el1h_fiq)
+trap_entry handle_el1h_fiq
 	save_registers 1
 	KMSAN_ENTER
 	mov	x0, sp
@@ -283,18 +333,18 @@ ENTRY(handle_el1h_fiq)
 	KMSAN_LEAVE
 	restore_registers 1
 	ERET
-END(handle_el1h_fiq)
+	trap_cfi_end handle_el1h_fiq
 
-ENTRY(handle_el1h_serror)
+trap_entry handle_el1h_serror
 	save_registers 1
 	KMSAN_ENTER
 	mov	x0, sp
 1:	bl	do_serror
 	b	1b
 	KMSAN_LEAVE
-END(handle_el1h_serror)
+	trap_cfi_end handle_el1h_serror
 
-ENTRY(handle_el0_sync)
+trap_entry handle_el0_sync
 	save_registers 0
 	KMSAN_ENTER
 	ldr	x0, [x18, #PC_CURTHREAD]
@@ -307,9 +357,9 @@ ENTRY(handle_el0_sync)
 	KMSAN_LEAVE
 	restore_registers 0
 	ERET
-END(handle_el0_sync)
+	trap_cfi_end handle_el0_sync
 
-ENTRY(handle_el0_irq)
+trap_entry handle_el0_irq
 	save_registers 0
 	KMSAN_ENTER
 	mov	x0, sp
@@ -319,9 +369,9 @@ ENTRY(handle_el0_irq)
 	KMSAN_LEAVE
 	restore_registers 0
 	ERET
-END(handle_el0_irq)
+	trap_cfi_end handle_el0_irq
 
-ENTRY(handle_el0_fiq)
+trap_entry handle_el0_fiq
 	save_registers 0
 	KMSAN_ENTER
 	mov	x0, sp
@@ -331,34 +381,42 @@ ENTRY(handle_el0_fiq)
 	KMSAN_LEAVE
 	restore_registers 0
 	ERET
-END(handle_el0_fiq)
+	trap_cfi_end handle_el0_fiq
 
-ENTRY(handle_el0_serror)
+trap_entry handle_el0_serror
 	save_registers 0
 	KMSAN_ENTER
 	mov	x0, sp
 1:	bl	do_serror
 	b	1b
 	KMSAN_LEAVE
-END(handle_el0_serror)
+	trap_cfi_end handle_el0_serror
 
-ENTRY(handle_empty_exception)
+trap_entry handle_empty_exception
 	save_registers 0
 	KMSAN_ENTER
 	mov	x0, sp
 1:	bl	unhandled_exception
 	b	1b
 	KMSAN_LEAVE
-END(handle_empty_exception)
+	trap_cfi_end handle_empty_exception
 
 .macro	vector	name, el
 	.align 7
+	trap_cfi_entry exception_vector_\@, empty
+.if \el == 1
+	.cfi_def_cfa sp, -128
+.else
+	.cfi_def_cfa sp, 0
+.endif
+	.cfi_undefined CFI_PC
 	save_registers_head \el
 	b	handle_\name
 	dsb	sy
 	isb
 	/* Break instruction to ensure we aren't executing code here. */
 	brk	0x42
+	trap_cfi_end
 .endm
 
 .macro	vempty el

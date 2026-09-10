@@ -262,6 +262,7 @@ extern cpu_reset_hook_t cpu_reset_hook;
 void	cpu_halt(void) __dead2;
 void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
+void	fork_trampoline_kthread(void);
 void	identify_cache(uint64_t);
 void	identify_cpu(u_int);
 void	install_cpu_errata(void);

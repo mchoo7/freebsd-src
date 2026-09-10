@@ -30,6 +30,7 @@
  */
 
 #include "assym.inc"
+
 #include "opt_kstack_pages.h"
 
 #include <sys/elf_common.h>
@@ -37,6 +38,7 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/proc.h>
+#include <machine/trap_cfi.h>
 
 .macro clear_step_flag pcbflags, tmp
 	tbz	\pcbflags, #PCB_SINGLE_STEP_SHIFT, 999f
@@ -227,7 +229,10 @@ ENTRY(cpu_switch)
 	ret
 END(cpu_switch)
 
-ENTRY(fork_trampoline)
+EENTRY(fork_trampoline)
+	trap_cfi_entry fork_trampoline, full
+	BTI_C
+	DTRACE_NOP
 	mov	x0, x19
 	mov	x1, x20
 	mov	x2, sp
@@ -279,14 +284,28 @@ ENTRY(fork_trampoline)
 	ldp	x28, x29, [sp, #TF_X + 28 * 8]
 
 	add	sp, sp, #(TF_SIZE)
+	.cfi_def_cfa_offset 0
 
 	/*
 	 * No need for interrupts reenabling since PSR
 	 * will be set to the desired value anyway.
 	 */
 	ERET
-	
-END(fork_trampoline)
+
+	trap_cfi_end fork_trampoline
+
+EENTRY(fork_trampoline_kthread)
+	trap_cfi_entry fork_trampoline_kthread, terminal
+	BTI_C
+	DTRACE_NOP
+	mov	x0, x19
+	mov	x1, x20
+	mov	x2, sp
+	mov	fp, #0
+	bl	_C_LABEL(fork_exit)
+	brk	#0
+1:	b	1b
+	trap_cfi_end fork_trampoline_kthread
 
 ENTRY(savectx)
 	/* Store the callee-saved registers */
