@@ -93,6 +93,7 @@ as_lapic_eoi:
 3:
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 	.endm
 
 /*
@@ -105,8 +106,11 @@ as_lapic_eoi:
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(spuriousint)
+	trap_cfi_entry ., empty
+	trap_cfi_machine
 	/* No EOI cycle used here */
 	jmp	doreti_iret
+	trap_cfi_end .
 
 	ISR_VEC	1, apic_isr1
 	ISR_VEC	2, apic_isr2
@@ -125,6 +129,7 @@ IDTVEC(spuriousint)
 	call	lapic_handle_timer
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * Local APIC CMCI handler.
@@ -134,6 +139,7 @@ IDTVEC(spuriousint)
 	call	lapic_handle_cmc
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * Local APIC error interrupt handler.
@@ -143,6 +149,7 @@ IDTVEC(spuriousint)
 	call	lapic_handle_error
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * Local APIC thermal interrupt handler.
@@ -152,6 +159,7 @@ IDTVEC(spuriousint)
 	call	lapic_handle_thermal
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 #ifdef XENHVM
 /*
@@ -164,6 +172,7 @@ IDTVEC(spuriousint)
 	call	xen_arch_intr_handle_upcall
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 #endif
 
 /*
@@ -181,6 +190,7 @@ IDTVEC(spuriousint)
 	call	as_lapic_eoi
 	KMSAN_LEAVE
 	jmp	ld_regs
+	trap_cfi_end .
 
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
@@ -192,6 +202,7 @@ IDTVEC(spuriousint)
 	call	ipi_bitmap_handler
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * Executed by a CPU when it receives an IPI_STOP from another CPU.
@@ -202,6 +213,7 @@ IDTVEC(spuriousint)
 	call	cpustop_handler
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * Executed by a CPU when it receives an IPI_SUSPEND from another CPU.
@@ -212,6 +224,7 @@ IDTVEC(spuriousint)
 	call	as_lapic_eoi
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * Executed by a CPU when it receives an IPI_OFF from another CPU.
@@ -223,6 +236,7 @@ IDTVEC(spuriousint)
 	call	as_lapic_eoi
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * Executed by a CPU when it receives an IPI_SWI.
@@ -234,6 +248,7 @@ IDTVEC(spuriousint)
 	call	ipi_swi_handler
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
@@ -251,6 +266,7 @@ IDTVEC(spuriousint)
 	call	as_lapic_eoi
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 
 /*
  * IPI handler whose purpose is to interrupt the CPU with minimum overhead.
@@ -273,6 +289,8 @@ IDTVEC(spuriousint)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(justreturn)
+	trap_cfi_entry ., empty
+	trap_cfi_machine
 	pushq	%rax
 	pushq	%rcx
 	pushq	%rdx
@@ -281,7 +299,9 @@ IDTVEC(justreturn)
 	popq	%rcx
 	popq	%rax
 	jmp	doreti_iret
+	trap_cfi_end .
 
 	INTR_HANDLER	justreturn1
 	call	as_lapic_eoi
 	jmp	doreti
+	trap_cfi_end .

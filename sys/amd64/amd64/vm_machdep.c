@@ -168,7 +168,10 @@ copy_thread(struct thread *td1, struct thread *td2)
 	pcb2->pcb_rbp = 0;
 	pcb2->pcb_rsp = (register_t)td2->td_frame - sizeof(void *);
 	pcb2->pcb_rbx = (register_t)td2;		/* fork_trampoline argument */
-	pcb2->pcb_rip = (register_t)fork_trampoline;
+	if ((td2->td_pflags & TDP_KTHREAD) != 0)
+		pcb2->pcb_rip = (register_t)fork_trampoline_kthread;
+	else
+		pcb2->pcb_rip = (register_t)fork_trampoline;
 	/*-
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.

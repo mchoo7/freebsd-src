@@ -40,5 +40,6 @@
 	movq	%rsp, %rdi
 	call	vmbus_handle_intr
 	jmp	doreti
+	trap_cfi_end .
 
 	.section .note.GNU-stack,"",%progbits

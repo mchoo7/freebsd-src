@@ -49,6 +49,7 @@
 	call	atpic_handle_intr
 	KMSAN_LEAVE
 	jmp	doreti
+	trap_cfi_end .
 	.endm
 
 	INTR	0, atpic_intr0

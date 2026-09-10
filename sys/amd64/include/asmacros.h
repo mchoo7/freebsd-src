@@ -77,6 +77,8 @@
 	popq	%rbp
 
 #ifdef LOCORE
+#include <machine/trap_cfi.h>
+
 /*
  * Access per-CPU data.
  */
@@ -107,25 +109,49 @@
 	.endr
 	.endm
 
-	.macro	PTI_UUENTRY has_err
+	.macro	PTI_UUENTRY has_err, cfi=0
 	movq	PCPU(KCR3),%rax
 	movq	%rax,%cr3
 	movq	PCPU(RSP0),%rax
 	subq	$PTI_SIZE - 8 * (1 - \has_err),%rax
 	MOVE_STACKS	((PTI_SIZE / 8) - 1 + \has_err)
+.if \cfi
+	.cfi_def_cfa %rax, PTI_SIZE - 8 * (1 - \has_err)
+	.cfi_offset %rax, PTI_RAX - (PTI_SIZE - 8 * (1 - \has_err))
+	.cfi_offset %rdx, PTI_RDX - (PTI_SIZE - 8 * (1 - \has_err))
+.endif
 	movq	%rax,%rsp
+.if \cfi
+	.cfi_def_cfa_register %rsp
+.endif
 	popq	%rdx
+.if \cfi
+	.cfi_adjust_cfa_offset -8
+	.cfi_same_value %rdx
+.endif
 	popq	%rax
+.if \cfi
+	.cfi_adjust_cfa_offset -8
+	.cfi_same_value %rax
+.endif
 	.endm
 
-	.macro	PTI_UENTRY has_err
+	.macro	PTI_UENTRY has_err, cfi=0
 	swapgs
 	lfence
 	cmpq	$~0,PCPU(UCR3)
 	je	1f
 	pushq	%rax
+.if \cfi
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset %rax, -(PTI_SIZE - 8 * (2 - \has_err))
+.endif
 	pushq	%rdx
-	PTI_UUENTRY \has_err
+.if \cfi
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset %rdx, -(PTI_SIZE - 8 * (1 - \has_err))
+.endif
+	PTI_UUENTRY \has_err, \cfi
 1:
 	.endm
 
@@ -134,11 +160,14 @@
 	.globl	X\name\()_pti
 	.type	X\name\()_pti,@function
 X\name\()_pti:
+	trap_cfi_entry X\name\()_pti, empty
+	trap_cfi_machine \has_err
 	/* %rax, %rdx, and possibly err are not yet pushed */
 	testb	$SEL_RPL_MASK,PTI_CS-PTI_ERR-((1-\has_err)*8)(%rsp)
 	jz	\contk
-	PTI_UENTRY \has_err
+	PTI_UENTRY \has_err, cfi=1
 	jmp	\contu
+	trap_cfi_end X\name\()_pti
 	.endm
 
 	.macro	PTI_INTRENTRY vec_name
@@ -146,10 +175,13 @@ X\name\()_pti:
 	.globl	X\vec_name\()_pti
 	.type	X\vec_name\()_pti,@function
 X\vec_name\()_pti:
+	trap_cfi_entry X\vec_name\()_pti, empty
+	trap_cfi_machine
 	testb	$SEL_RPL_MASK,PTI_CS-3*8(%rsp) /* err, %rax, %rdx not pushed */
 	jz	.L\vec_name\()_u
-	PTI_UENTRY has_err=0
+	PTI_UENTRY has_err=0, cfi=1
 	jmp	.L\vec_name\()_u
+	trap_cfi_end X\vec_name\()_pti
 	.endm
 
 	.macro	INTR_PUSH_FRAME vec_name
@@ -157,27 +189,45 @@ X\vec_name\()_pti:
 	.globl	X\vec_name
 	.type	X\vec_name,@function
 X\vec_name:
+	trap_cfi_entry X\vec_name, empty
+	trap_cfi_machine
 	testb	$SEL_RPL_MASK,PTI_CS-3*8(%rsp) /* come from kernel? */
 	jz	.L\vec_name\()_u		/* Yes, dont swapgs again */
 	swapgs
 .L\vec_name\()_u:
 	lfence
 	subq	$TF_RIP,%rsp	/* skip dummy tf_err and tf_trapno */
+	.cfi_def_cfa_offset TF_SIZE
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rsi,TF_RSI(%rsp)
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r10,TF_R10(%rsp)
+	trap_cfi_saved %r10, TF_R10
 	movq	%r11,TF_R11(%rsp)
+	trap_cfi_saved %r11, TF_R11
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	SAVE_SEGS
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	pushfq
