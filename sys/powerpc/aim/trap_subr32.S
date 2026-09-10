@@ -38,6 +38,8 @@
  *	#include <powerpc/aim/trap_subr.S>
  */
 
+#include <machine/trap_cfi.h>
+
 /*
  * Save/restore segment registers
  */
@@ -90,7 +92,7 @@
  *	r1		kernel stack
  *	SRR0/1		as at start of trap
  */
-#define	FRAME_SETUP(savearea)						\
+#define	FRAME_SETUP(savearea, emit_cfi)					\
 /* Have to enable translation to allow access of kernel stack: */	\
 	GET_CPUINFO(%r31);						\
 	mfsrr0	%r30;							\
@@ -103,45 +105,80 @@
 	isync;								\
 	mfsprg1	%r31;			/* get saved SP */		\
 	stwu	%r31,-FRAMELEN(%r1);	/* save it in the callframe */	\
+	.if emit_cfi; .cfi_def_cfa %r1, CFI_TF_SIZE; .endif;		\
 	stw	%r0, FRAME_0+8(%r1);	/* save r0 in the trapframe */	\
+	.if emit_cfi; trap_cfi_saved 0, FRAME_0; .endif;		\
 	stw	%r31,FRAME_1+8(%r1);	/* save SP   "      "       */	\
+	.if emit_cfi; trap_cfi_saved 1, FRAME_1; .endif;		\
 	stw	%r2, FRAME_2+8(%r1);	/* save r2   "      "       */	\
+	.if emit_cfi; trap_cfi_saved 2, FRAME_2; .endif;		\
 	stw	%r28,FRAME_LR+8(%r1);	/* save LR   "      "       */	\
+	.if emit_cfi; trap_cfi_saved CFI_LR, FRAME_LR; .endif;		\
 	stw	%r29,FRAME_CR+8(%r1);	/* save CR   "      "       */	\
+	.if emit_cfi; trap_cfi_saved CFI_CR, FRAME_CR; .endif;		\
 	GET_CPUINFO(%r2);						\
 	lwz	%r28,(savearea+CPUSAVE_R28)(%r2); /* get saved r28 */	\
 	lwz	%r29,(savearea+CPUSAVE_R29)(%r2); /* get saved r29 */	\
 	lwz	%r30,(savearea+CPUSAVE_R30)(%r2); /* get saved r30 */	\
 	lwz	%r31,(savearea+CPUSAVE_R31)(%r2); /* get saved r31 */	\
 	stw	%r3,  FRAME_3+8(%r1);	/* save r3-r31 */		\
+	.if emit_cfi; trap_cfi_saved 3, FRAME_3; .endif;		\
 	stw	%r4,  FRAME_4+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 4, FRAME_4; .endif;		\
 	stw	%r5,  FRAME_5+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 5, FRAME_5; .endif;		\
 	stw	%r6,  FRAME_6+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 6, FRAME_6; .endif;		\
 	stw	%r7,  FRAME_7+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 7, FRAME_7; .endif;		\
 	stw	%r8,  FRAME_8+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 8, FRAME_8; .endif;		\
 	stw	%r9,  FRAME_9+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 9, FRAME_9; .endif;		\
 	stw	%r10, FRAME_10+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 10, FRAME_10; .endif;		\
 	stw	%r11, FRAME_11+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 11, FRAME_11; .endif;		\
 	stw	%r12, FRAME_12+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 12, FRAME_12; .endif;		\
 	stw	%r13, FRAME_13+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 13, FRAME_13; .endif;		\
 	stw	%r14, FRAME_14+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 14, FRAME_14; .endif;		\
 	stw	%r15, FRAME_15+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 15, FRAME_15; .endif;		\
 	stw	%r16, FRAME_16+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 16, FRAME_16; .endif;		\
 	stw	%r17, FRAME_17+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 17, FRAME_17; .endif;		\
 	stw	%r18, FRAME_18+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 18, FRAME_18; .endif;		\
 	stw	%r19, FRAME_19+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 19, FRAME_19; .endif;		\
 	stw	%r20, FRAME_20+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 20, FRAME_20; .endif;		\
 	stw	%r21, FRAME_21+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 21, FRAME_21; .endif;		\
 	stw	%r22, FRAME_22+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 22, FRAME_22; .endif;		\
 	stw	%r23, FRAME_23+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 23, FRAME_23; .endif;		\
 	stw	%r24, FRAME_24+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 24, FRAME_24; .endif;		\
 	stw	%r25, FRAME_25+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 25, FRAME_25; .endif;		\
 	stw	%r26, FRAME_26+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 26, FRAME_26; .endif;		\
 	stw	%r27, FRAME_27+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 27, FRAME_27; .endif;		\
 	stw	%r28, FRAME_28+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 28, FRAME_28; .endif;		\
 	stw	%r29, FRAME_29+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 29, FRAME_29; .endif;		\
 	stw	%r30, FRAME_30+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 30, FRAME_30; .endif;		\
 	stw	%r31, FRAME_31+8(%r1);					\
+	.if emit_cfi; trap_cfi_saved 31, FRAME_31; .endif;		\
 	lwz	%r28,(savearea+CPUSAVE_AIM_DAR)(%r2);  /* saved DAR */	\
 	lwz	%r29,(savearea+CPUSAVE_AIM_DSISR)(%r2);/* saved DSISR */\
 	lwz	%r30,(savearea+CPUSAVE_SRR0)(%r2); /* saved SRR0 */	\
@@ -150,11 +187,14 @@
 	mfctr	%r4;							\
 	mfsprg3	%r5;							\
 	stw	%r3, FRAME_XER+8(1);	/* save xer/ctr/exc */		\
+	.if emit_cfi; trap_cfi_saved CFI_XER, FRAME_XER; .endif;	\
 	stw	%r4, FRAME_CTR+8(1);					\
+	.if emit_cfi; trap_cfi_saved CFI_CTR, FRAME_CTR; .endif;	\
 	stw	%r5, FRAME_EXC+8(1);					\
 	stw	%r28,FRAME_AIM_DAR+8(1);				\
 	stw	%r29,FRAME_AIM_DSISR+8(1); /* save dsisr/srr0/srr1 */	\
 	stw	%r30,FRAME_SRR0+8(1);					\
+	.if emit_cfi; trap_cfi_saved CFI_PC, FRAME_SRR0; .endif;	\
 	stw	%r31,FRAME_SRR1+8(1);					\
 	lwz	%r2,PC_CURTHREAD(%r2)	/* set curthread pointer */
 
@@ -210,6 +250,7 @@
 	lwz	%r2, FRAME_2+8(%r1);					\
 	lwz	%r0, FRAME_0+8(%r1);					\
 	lwz	%r1, FRAME_1+8(%r1);					\
+	.cfi_def_cfa %r1, 0; .cfi_undefined CFI_PC;			\
 /* Can't touch %r1 from here on */					\
 	mtsprg2	%r2;			/* save r2 & r3 */		\
 	mtsprg3	%r3;							\
@@ -776,7 +817,7 @@ u_trap:
  * Now the common trap catching code.
  */
 k_trap:
-	FRAME_SETUP(PC_TEMPSAVE)
+	FRAME_SETUP(PC_TEMPSAVE, 0)
 	/* Restore USER_SR */
 	GET_CPUINFO(%r30)
 	lwz	%r30,PC_CURPCB(%r30)
@@ -784,6 +825,8 @@ k_trap:
 	mtsr	USER_SR,%r30; sync; isync
 /* Call C interrupt dispatcher: */
 trapagain:
+	.cfi_startproc
+	trap_cfi_entry full
 	addi	%r3,%r1,8
 	bl	CNAME(powerpc_interrupt)
 	.globl	CNAME(trapexit)		/* backtrace code sentinel */
@@ -823,6 +866,7 @@ CNAME(rfi_patch1):
 	.globl	CNAME(rfid_patch)
 CNAME(rfid_patch):
 	rfid
+	.cfi_endproc
 
 #if defined(KDB)
 /*
@@ -830,6 +874,8 @@ CNAME(rfid_patch):
  */
 	.globl	CNAME(breakpoint)
 CNAME(breakpoint):
+	.cfi_startproc
+	trap_cfi_entry empty
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
@@ -860,7 +906,8 @@ dbtrap:
 	lwz	%r1,trapstk@got(%r1)
 	addi	%r1,%r1,TRAPSTKSZ-16
 
-	FRAME_SETUP(PC_DBSAVE)
+	FRAME_SETUP(PC_DBSAVE, 1)
+	trap_cfi_full
 /* Call C trap code: */
 	addi	%r3,%r1,8
 	bl	CNAME(db_trap_glue)
@@ -926,4 +973,5 @@ CNAME(dblow):
 	mtlr	%r1
 	blrl
 CNAME(dbend):
+	.cfi_endproc
 #endif /* KDB */
