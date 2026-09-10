@@ -284,4 +284,6 @@ ASENTRY_NOPROF(__restartkernel)
 	nop
 ASEND(__restartkernel)
 
+	.cfi_sections .eh_frame
+
 #include <powerpc/aim/trap_subr64.S>
