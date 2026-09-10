@@ -30,6 +30,8 @@
 #include <machine/asmacros.h>
 #include <machine/specialreg.h>
 
+	.cfi_sections .eh_frame
+
 /*
  * This is the Hyper-V vmbus channel direct callback interrupt.
  * Only used when it is running on Hyper-V.
@@ -40,5 +42,6 @@
 	movq	%rsp, %rdi
 	call	vmbus_handle_intr
 	jmp	doreti
+	.cfi_endproc
 
 	.section .note.GNU-stack,"",%progbits
