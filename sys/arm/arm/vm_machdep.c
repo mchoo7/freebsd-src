@@ -189,7 +189,10 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	td->td_pcb->pcb_regs.sf_r4 = (register_t)fork_return;
 	td->td_pcb->pcb_regs.sf_r5 = (register_t)td;
-	td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	if ((td->td_pflags & TDP_KTHREAD) != 0)
+		td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline_kthread;
+	else
+		td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline;
 	td->td_pcb->pcb_regs.sf_sp = (register_t)STACKALIGN(td->td_frame);
 
 	td->td_frame->tf_spsr &= ~PSR_C;

@@ -114,3 +114,12 @@ ENTRY(fork_trampoline)
 	b	_C_LABEL(fork_exit)	/* to userland via swi_exit code. */
 END(fork_trampoline)
 
+ENTRY(fork_trampoline_kthread)
+	STOP_UNWINDING
+	mov	fp, #0
+	mov	r2, sp
+	mov	r1, r5
+	mov	r0, r4
+	ldr	lr, =swi_entry_kthread
+	b	_C_LABEL(fork_exit)
+END(fork_trampoline_kthread)
