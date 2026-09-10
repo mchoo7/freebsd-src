@@ -103,22 +103,36 @@ dtrace_invop_calltrap_addr:
 	.macro	TRAP_NOEN	l, trapno
 	PTI_ENTRY	\l,\l\()_pti_k,\l\()_pti_u
 \l\()_pti_k:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	jmp	alltraps_noen_k
+	.cfi_endproc
 \l\()_pti_u:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	jmp	alltraps_noen_u
+	.cfi_endproc
 
 	.globl	X\l
 	.type	X\l,@function
 X\l:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
@@ -127,6 +141,7 @@ X\l:
 	swapgs
 	lfence
 	jmp	alltraps_noen_u
+	.cfi_endproc
 	.endm
 
 	TRAP_NOEN	bpt, T_BPTFLT
@@ -138,22 +153,36 @@ X\l:
 	.macro	TRAP	l, trapno
 	PTI_ENTRY	\l,\l\()_pti_k,\l\()_pti_u
 \l\()_pti_k:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	jmp	alltraps_k
+	.cfi_endproc
 \l\()_pti_u:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	jmp	alltraps_u
+	.cfi_endproc
 
 	.globl	X\l
 	.type	X\l,@function
 X\l:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
@@ -162,6 +191,7 @@ X\l:
 	swapgs
 	lfence
 	jmp	alltraps_u
+	.cfi_endproc
 	.endm
 
 	TRAP	div, T_DIVIDE
@@ -178,19 +208,33 @@ X\l:
 	.macro	TRAP_ERR	l, trapno
 	PTI_ENTRY	\l,\l\()_pti_k,\l\()_pti_u,has_err=1
 \l\()_pti_k:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	jmp	alltraps_k
+	.cfi_endproc
 \l\()_pti_u:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	jmp	alltraps_u
+	.cfi_endproc
 	.globl	X\l
 	.type	X\l,@function
 X\l:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
@@ -198,6 +242,7 @@ X\l:
 	swapgs
 	lfence
 	jmp	alltraps_u
+	.cfi_endproc
 	.endm
 
 	TRAP_ERR	tss, T_TSSFLT
@@ -214,23 +259,48 @@ X\l:
 	.globl	alltraps_u
 	.type	alltraps_u,@function
 alltraps_u:
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_def_cfa %rsp, TF_SIZE
+	trap_cfi_saved %rip, TF_RIP
+	trap_cfi_saved %cs, TF_CS
+	trap_cfi_saved 49, TF_RFLAGS
+	trap_cfi_saved %rsp, TF_RSP
+	trap_cfi_saved %ss, TF_SS
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	call	handle_ibrs_entry
 	jmp	alltraps_save_segs
+	.cfi_endproc
 	SUPERALIGN_TEXT
 	.globl	alltraps_k
 	.type	alltraps_k,@function
 alltraps_k:
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_def_cfa %rsp, TF_SIZE
+	trap_cfi_saved %rip, TF_RIP
+	trap_cfi_saved %cs, TF_CS
+	trap_cfi_saved 49, TF_RFLAGS
+	trap_cfi_saved %rsp, TF_RSP
+	trap_cfi_saved %ss, TF_SS
 	lfence
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 alltraps_save_segs:
 	SAVE_SEGS
 	testl	$PSL_I,TF_RFLAGS(%rsp)
@@ -238,16 +308,27 @@ alltraps_save_segs:
 	sti
 alltraps_pushregs_no_rax:
 	movq	%rsi,TF_RSI(%rsp)
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r10,TF_R10(%rsp)
+	trap_cfi_saved %r10, TF_R10
 	movq	%r11,TF_R11(%rsp)
+	trap_cfi_saved %r11, TF_R11
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	pushfq
 	andq	$~(PSL_D | PSL_AC),(%rsp)
@@ -277,14 +358,18 @@ alltraps_pushregs_no_rax:
 	/* Jump to the code hooked in by DTrace. */
 	jmpq	*dtrace_invop_jump_addr
 #endif
+	.cfi_endproc
 	.globl	calltrap
 	.type	calltrap,@function
 calltrap:
+	.cfi_startproc
+	trap_cfi_entry full
 	KMSAN_ENTER
 	movq	%rsp, %rdi
 	call	trap_check
 	KMSAN_LEAVE
 	jmp	doreti			/* Handle any pending ASTs */
+	.cfi_endproc
 
 	/*
 	 * alltraps_noen_u/k entry points.
@@ -296,46 +381,88 @@ calltrap:
 	.globl	alltraps_noen_u
 	.type	alltraps_noen_u,@function
 alltraps_noen_u:
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_def_cfa %rsp, TF_SIZE
+	trap_cfi_saved %rip, TF_RIP
+	trap_cfi_saved %cs, TF_CS
+	trap_cfi_saved 49, TF_RFLAGS
+	trap_cfi_saved %rsp, TF_RSP
+	trap_cfi_saved %ss, TF_SS
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	jmp	alltraps_noen_save_segs
+	.cfi_endproc
 	SUPERALIGN_TEXT
 	.globl	alltraps_noen_k
 	.type	alltraps_noen_k,@function
 alltraps_noen_k:
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_def_cfa %rsp, TF_SIZE
+	trap_cfi_saved %rip, TF_RIP
+	trap_cfi_saved %cs, TF_CS
+	trap_cfi_saved 49, TF_RFLAGS
+	trap_cfi_saved %rsp, TF_RSP
+	trap_cfi_saved %ss, TF_SS
 	lfence
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 alltraps_noen_save_segs:
 	SAVE_SEGS
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jz	alltraps_pushregs_no_rax
 	call	handle_ibrs_entry
 	jmp	alltraps_pushregs_no_rax
+	.cfi_endproc
 
 IDTVEC(dblfault)
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$T_DOUBLEFLT,TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rsi,TF_RSI(%rsp)
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r10,TF_R10(%rsp)
+	trap_cfi_saved %r10, TF_R10
 	movq	%r11,TF_R11(%rsp)
+	trap_cfi_saved %r11, TF_R11
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	SAVE_SEGS
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	pushfq
@@ -358,45 +485,79 @@ IDTVEC(dblfault)
 	KMSAN_LEAVE
 3:	hlt
 	jmp	3b
+	.cfi_endproc
 
 	ALIGN_TEXT
 IDTVEC(page_pti)
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	testb	$SEL_RPL_MASK,PTI_CS-PTI_ERR(%rsp)
 	jz	page_k
 	swapgs
 	lfence
 	pushq	%rax
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset %rax, PTI_RAX - PTI_SIZE
 	movq	%cr3,%rax
 	movq	%rax,PCPU(SAVED_UCR3)
 	cmpq	$~0,PCPU(UCR3)
 	jne	1f
+	.cfi_remember_state
 	popq	%rax
+	.cfi_adjust_cfa_offset -8
+	.cfi_same_value %rax
 	jmp	page_u
+	.cfi_restore_state
 1:	pushq	%rdx
-	PTI_UUENTRY has_err=1
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset %rdx, PTI_RDX - PTI_SIZE
+	PTI_UUENTRY has_err=1, cfi=1
 	jmp	page_u
+	.cfi_endproc
 	ALIGN_TEXT
 IDTVEC(page)
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	testb	$SEL_RPL_MASK,TF_CS-TF_ERR(%rsp) /* Did we come from kernel? */
 	jnz	page_u_swapgs		/* already running with kernel GS.base */
+	.cfi_endproc
 page_k:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	lfence
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movq	%rdi,TF_RDI(%rsp)	/* free up GP registers */
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	jmp	page_cr2
+	.cfi_endproc
 	ALIGN_TEXT
 page_u_swapgs:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	swapgs
 	lfence
 page_u:
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	movq	PCPU(SAVED_UCR3),%rax
@@ -411,6 +572,7 @@ page_cr2:
 	jz	alltraps_pushregs_no_rax
 	sti
 	jmp	alltraps_pushregs_no_rax
+	.cfi_endproc
 
 	/*
 	 * We have to special-case this one.  If we get a trap in doreti() at
@@ -448,16 +610,27 @@ page_cr2:
 1:	swapgs
 	jmp	X\name
 IDTVEC(\name\()_pti)
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	cmpq	$doreti_iret,PTI_RIP-2*8(%rsp)
 	je	\name\()_pti_doreti
 	testb	$SEL_RPL_MASK,PTI_CS-2*8(%rsp) /* %rax, %rdx not yet pushed */
 	jz	X\name		/* lfence is not needed until %gs: use */
-	PTI_UENTRY has_err=1
+	PTI_UENTRY has_err=1, cfi=1
 	swapgs	/* fence provided by PTI_UENTRY */
+	.cfi_endproc
 IDTVEC(\name)
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine 1
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$\trapno,TF_TRAPNO(%rsp)
 	jmp	prot_addrf
+.ifnc \name,prot
+	.cfi_endproc
+.endif
 	.endm
 
 	PROTF_ENTRY	missing, T_SEGNPFLT
@@ -467,9 +640,13 @@ IDTVEC(\name)
 prot_addrf:
 	movq	$0,TF_ADDR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	leaq	doreti_iret(%rip),%rdi
@@ -501,6 +678,7 @@ prot_addrf:
 6:	lfence
 	movq	PCPU(CURPCB),%rdi
 	jmp	4b
+	.cfi_endproc
 
 /*
  * Fast syscall entry point.  We enter here with just our new %cs/%ss set,
@@ -513,6 +691,11 @@ prot_addrf:
  */
 	SUPERALIGN_TEXT
 IDTVEC(fast_syscall_pti)
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_register %rip, %rcx
+	.cfi_register 49, %r11
+	.cfi_val_offset %rsp, 0
 	swapgs
 	cmpq	$~0,PCPU(UCR3)
 	je	fast_syscall_common
@@ -521,19 +704,36 @@ IDTVEC(fast_syscall_pti)
 	movq	%rax,%cr3
 	movq	PCPU(SCRATCH_RAX),%rax
 	jmp	fast_syscall_common
+	.cfi_endproc
 	SUPERALIGN_TEXT
 IDTVEC(fast_syscall)
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_register %rip, %rcx
+	.cfi_register 49, %r11
+	.cfi_val_offset %rsp, 0
 	swapgs
+	.cfi_endproc
 fast_syscall_common:
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_register %rip, %rcx
+	.cfi_register 49, %r11
+	.cfi_val_offset %rsp, 0
 	movq	%rsp,PCPU(SCRATCH_RSP)
 	movq	PCPU(RSP0),%rsp
+	.cfi_undefined %rsp
 	/* Now emulate a trapframe. Make the 8 byte alignment odd for call. */
 	subq	$TF_SIZE,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	/* defer TF_RSP till we have a spare register */
 	movq	%r11,TF_RFLAGS(%rsp)
+	trap_cfi_saved 49, TF_RFLAGS
 	movq	%rcx,TF_RIP(%rsp)	/* %rcx original value is in %r10 */
+	trap_cfi_saved %rip, TF_RIP
 	movq	PCPU(SCRATCH_RSP),%r11	/* %r11 already saved */
 	movq	%r11,TF_RSP(%rsp)	/* user stack pointer */
+	trap_cfi_saved %rsp, TF_RSP
 	/*
 	 * Save a few arg registers early to free them for use in
 	 * handle_ibrs_entry().  %r10 is especially tricky.  It is not an
@@ -542,26 +742,41 @@ fast_syscall_common:
 	 * clobber %r11, but %r11 (original %eflags) has been saved.
 	 */
 	movq	%rax,TF_RAX(%rsp)	/* syscall number */
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rdx,TF_RDX(%rsp)	/* arg 3 */
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%r10,TF_RCX(%rsp)	/* arg 4 */
+	trap_cfi_saved %rcx, TF_RCX
 	SAVE_SEGS
 	call	handle_ibrs_entry
 	movq	PCPU(CURPCB),%r11
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
 	sti
 	movq	$KUDSEL,TF_SS(%rsp)
+	trap_cfi_saved %ss, TF_SS
 	movq	$KUCSEL,TF_CS(%rsp)
+	trap_cfi_saved %cs, TF_CS
 	movq	$2,TF_ERR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)	/* arg 1 */
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rsi,TF_RSI(%rsp)	/* arg 2 */
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%r8,TF_R8(%rsp)		/* arg 5 */
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)		/* arg 6 */
+	trap_cfi_saved %r9, TF_R9
 	movq	%rbx,TF_RBX(%rsp)	/* C preserved */
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)	/* C preserved */
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r12,TF_R12(%rsp)	/* C preserved */
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)	/* C preserved */
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)	/* C preserved */
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
+	trap_cfi_saved %r15, TF_R15
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	movq	PCPU(CURTHREAD),%rdi
 	movq	%rsp,TD_FRAME(%rdi)
@@ -587,6 +802,11 @@ fast_syscall_common:
 	movq	TF_RFLAGS(%rsp),%r11	/* original %rflags */
 	movq	TF_RIP(%rsp),%rcx	/* original %rip */
 	movq	TF_RSP(%rsp),%rsp	/* user stack pointer */
+	.cfi_def_cfa %rsp, 0
+	trap_cfi_gprs_live
+	.cfi_register %rip, %rcx
+	.cfi_register 49, %r11
+	.cfi_val_offset %rsp, 0
 	xorl	%r8d,%r8d		/* zero the rest of GPRs */
 	xorl	%r10d,%r10d
 	cmpq	$~0,PCPU(UCR3)
@@ -607,6 +827,7 @@ fast_syscall_common:
 
 4:	/* Requested full context restore, use doreti for that. */
 	jmp	doreti
+	.cfi_endproc
 
 /*
  * Here for CYA insurance, in case a "syscall" instruction gets
@@ -614,7 +835,13 @@ fast_syscall_common:
  * to *something* if EFER_SCE is enabled.
  */
 IDTVEC(fast_syscall32)
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_register %rip, %rcx
+	.cfi_register 49, %r11
+	.cfi_val_offset %rsp, 0
 	sysret
+	.cfi_endproc
 
 /*
  * DB# handler is very similar to NM#, because 'mov/pop %ss' delay
@@ -623,25 +850,44 @@ IDTVEC(fast_syscall32)
  * on IST stack and be ready for non-kernel GSBASE.
  */
 IDTVEC(dbg)
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$(T_TRCTRAP),TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rsi,TF_RSI(%rsp)
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r10,TF_R10(%rsp)
+	trap_cfi_saved %r10, TF_R10
 	movq	%r11,TF_R11(%rsp)
+	trap_cfi_saved %r11, TF_R11
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	SAVE_SEGS
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	pushfq
@@ -717,6 +963,7 @@ dbg_fromuserspace:
 	movq	%rsp,%rsi
 	rep;movsb
 	movq	%rax,%rsp
+	.cfi_def_cfa %rsp, TF_SIZE
 	call	handle_ibrs_entry
 	movq	PCPU(CURPCB),%rdi
 	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)
@@ -730,6 +977,7 @@ dbg_fromuserspace:
 	orq	%rdx,%rax
 	movq	%rax,PCB_GSBASE(%rdi)
 3:	jmp	calltrap
+	.cfi_endproc
 
 /*
  * NMI handling is special.
@@ -756,25 +1004,44 @@ dbg_fromuserspace:
  */
 
 IDTVEC(nmi)
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$(T_NMI),TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rsi,TF_RSI(%rsp)
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r10,TF_R10(%rsp)
+	trap_cfi_saved %r10, TF_R10
 	movq	%r11,TF_R11(%rsp)
+	trap_cfi_saved %r11, TF_R11
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	SAVE_SEGS
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	pushfq
@@ -839,7 +1106,10 @@ nmi_fromuserspace:
 	movq	%rax,PCB_GSBASE(%rdi)
 3:
 /* Note: this label is also used by ddb and gdb: */
+	.cfi_endproc
 nmi_calltrap:
+	.cfi_startproc
+	trap_cfi_entry full
 	KMSAN_ENTER
 	movq	%rsp,%rdi
 	call	trap
@@ -941,6 +1211,7 @@ nocallchain:
 	RESTORE_REGS
 	addq	$TF_RIP,%rsp
 	jmp	doreti_iret
+	.cfi_endproc
 
 /*
  * MC# handling is similar to NMI.
@@ -964,25 +1235,44 @@ nocallchain:
  */
 
 IDTVEC(mchk)
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movl	$(T_MCHK),TF_TRAPNO(%rsp)
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rsi,TF_RSI(%rsp)
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r10,TF_R10(%rsp)
+	trap_cfi_saved %r10, TF_R10
 	movq	%r11,TF_R11(%rsp)
+	trap_cfi_saved %r11, TF_R11
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	SAVE_SEGS
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	pushfq
@@ -1028,7 +1318,10 @@ mchk_fromuserspace:
 	movq	%rax,%cr3
 1:	call	handle_ibrs_entry
 /* Note: this label is also used by ddb and gdb: */
+	.cfi_endproc
 mchk_calltrap:
+	.cfi_startproc
+	trap_cfi_entry full
 	KMSAN_ENTER
 	movq	%rsp,%rdi
 	call	mca_intr
@@ -1057,8 +1350,11 @@ mchk_calltrap:
 	RESTORE_REGS
 	addq	$TF_RIP,%rsp
 	jmp	doreti_iret
+	.cfi_endproc
 
 ENTRY(fork_trampoline)
+	.cfi_startproc
+	trap_cfi_entry full
 	movq	%r12,%rdi		/* function */
 	movq	%rbx,%rsi		/* arg1 */
 	movq	%rsp,%rdx		/* trapframe pointer */
@@ -1066,6 +1362,21 @@ ENTRY(fork_trampoline)
 	cmpb	$0, fred
 	jne	fred_checkast
 	jmp	doreti			/* Handle any ASTs */
+	.cfi_endproc
+END(fork_trampoline)
+
+ENTRY(fork_trampoline_kthread)
+	.cfi_startproc
+	trap_cfi_entry terminal
+	movq	%r12,%rdi		/* function */
+	movq	%rbx,%rsi		/* arg1 */
+	movq	%rsp,%rdx		/* trapframe pointer */
+	call	fork_exit
+	cmpb	$0, fred
+	jne	fred_checkast
+	jmp	doreti			/* Handle any ASTs */
+	.cfi_endproc
+END(fork_trampoline_kthread)
 
 /*
  * To efficiently implement classification of trap and interrupt handlers
@@ -1111,6 +1422,8 @@ ENTRY(fork_trampoline)
 	.type	doreti,@function
 	.globl	doreti
 doreti:
+	.cfi_startproc
+	trap_cfi_entry full
 	/*
 	 * Check if ASTs can be handled now.
 	 */
@@ -1246,9 +1559,13 @@ ld_regs:
 	jmp	doreti_iret
 1:	swapgs
 2:	addq	$TF_RIP,%rsp
+	.cfi_def_cfa_offset 40
 	.globl	doreti_iret
 doreti_iret:
+	trap_cfi_machine
+	trap_cfi_gprs_live
 	iretq
+	.cfi_endproc
 
 	/*
 	 * 32bit gsbase path.
@@ -1427,8 +1744,21 @@ gsbase_load_fault:
  */
 	ALIGN_TEXT
 user_fred_syscall:
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_def_cfa %rsp, TF_SIZE
+	trap_cfi_saved %rip, TF_RIP
+	trap_cfi_saved %cs, TF_CS
+	trap_cfi_saved 49, TF_RFLAGS
+	trap_cfi_saved %rsp, TF_RSP
+	trap_cfi_saved %ss, TF_SS
+	trap_cfi_saved %rax, TF_RAX
+	trap_cfi_saved %rdi, TF_RDI
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	SAVE_SEGS
 	movq	PCPU(CURPCB),%r11
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
@@ -1436,13 +1766,21 @@ user_fred_syscall:
 	movw	$KUDSEL,TF_SS(%rsp)
 	movw	$KUCSEL,TF_CS(%rsp)
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	andl	$TF_FRED_EVINFO2_INSTLENMASK,%eax
 	shrl	$TF_FRED_EVINFO2_INSTLENSHIFT,%eax
@@ -1467,24 +1805,56 @@ user_fred_syscall:
 	xorl	%r10d,%r10d
 	xorl	%r11d,%r11d
 	addq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset 40
+	trap_cfi_machine
+	trap_cfi_gprs_live
+	.cfi_undefined %rcx
+	.cfi_undefined %r8
+	.cfi_undefined %r9
+	.cfi_undefined %r10
+	.cfi_undefined %r11
 	.globl	fred_syscall_eretu
 fred_syscall_eretu:
 	eretu
+	.cfi_endproc
 
 	ALIGN_TEXT
 user_fred_non_syscall:
+	.cfi_startproc
+	trap_cfi_entry empty
+	.cfi_def_cfa %rsp, TF_SIZE
+	trap_cfi_saved %rip, TF_RIP
+	trap_cfi_saved %cs, TF_CS
+	trap_cfi_saved 49, TF_RFLAGS
+	trap_cfi_saved %rsp, TF_RSP
+	trap_cfi_saved %ss, TF_SS
+	trap_cfi_saved %rax, TF_RAX
+	trap_cfi_saved %rdi, TF_RDI
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r10,TF_R10(%rsp)
+	trap_cfi_saved %r10, TF_R10
 	movq	%r11,TF_R11(%rsp)
+	trap_cfi_saved %r11, TF_R11
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	SAVE_SEGS
 	movq	PCPU(CURTHREAD),%r9
 	movq	TD_PCB(%r9),%r8
@@ -1498,6 +1868,9 @@ user_fred_non_syscall:
 	call	trap_fred_u
 	KMSAN_LEAVE
 fred_checkast:
+	.cfi_undefined %rax	/* Not saved by the ERETU fault path. */
+	.cfi_undefined %r10	/* Not saved by the syscall path. */
+	.cfi_undefined %r11
 	cli
 	movq	PCPU(CURTHREAD),%rax
 	movq	TD_PCB(%rax),%r8
@@ -1554,9 +1927,13 @@ fred_ld_ds:
 fred_u_regs:
 	RESTORE_REGS
 	addq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset 40
+	trap_cfi_machine
+	trap_cfi_gprs_live
 	.globl	fred_eretu
 fred_eretu:
 	eretu
+	.cfi_endproc
 
 	.globl	fred_ld_fs_fault
 fred_ld_fs_fault:
@@ -1642,41 +2019,72 @@ fred_eretu_fault:
 	.p2align 12,0x90
 	.globl	fred_events_handlers, fred_events_handlers_end
 fred_events_handlers:
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rsi,TF_RSI(%rsp)
+	trap_cfi_saved %rsi, TF_RSI
 	movl	TF_FRED_EVINFO2(%rsp),%edi
 	movl	%edi,%eax
 	andl	$TF_FRED_EVINFO2_TYPEMASK,%edi
 	cmpl	$TF_FRED_EVINFO2_TYPE_SYSCALL,%edi
 	je	user_fred_syscall
 	jmp	user_fred_non_syscall
+	.cfi_endproc
 
 	. = fred_events_handlers + 256
+	.cfi_startproc
+	trap_cfi_entry empty
+	trap_cfi_machine
 	subq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset TF_SIZE
 	movq	%rax,TF_RAX(%rsp)
+	trap_cfi_saved %rax, TF_RAX
 	movq	%rdi,TF_RDI(%rsp)
+	trap_cfi_saved %rdi, TF_RDI
 	movq	%rdx,TF_RDX(%rsp)
+	trap_cfi_saved %rdx, TF_RDX
 	movq	%rcx,TF_RCX(%rsp)
+	trap_cfi_saved %rcx, TF_RCX
 	movq	%rsi,TF_RSI(%rsp)
+	trap_cfi_saved %rsi, TF_RSI
 	movq	%r8,TF_R8(%rsp)
+	trap_cfi_saved %r8, TF_R8
 	movq	%r9,TF_R9(%rsp)
+	trap_cfi_saved %r9, TF_R9
 	movq	%rbx,TF_RBX(%rsp)
+	trap_cfi_saved %rbx, TF_RBX
 	movq	%rbp,TF_RBP(%rsp)
+	trap_cfi_saved %rbp, TF_RBP
 	movq	%r10,TF_R10(%rsp)
+	trap_cfi_saved %r10, TF_R10
 	movq	%r11,TF_R11(%rsp)
+	trap_cfi_saved %r11, TF_R11
 	movq	%r12,TF_R12(%rsp)
+	trap_cfi_saved %r12, TF_R12
 	movq	%r13,TF_R13(%rsp)
+	trap_cfi_saved %r13, TF_R13
 	movq	%r14,TF_R14(%rsp)
+	trap_cfi_saved %r14, TF_R14
 	movq	%r15,TF_R15(%rsp)
+	trap_cfi_saved %r15, TF_R15
 	movq	%rsp, %rdi
 	KMSAN_ENTER
 	call	trap_fred_k
 	KMSAN_LEAVE
 	RESTORE_REGS
 	addq	$TF_ERR,%rsp
+	.cfi_def_cfa_offset 40
+	trap_cfi_machine
+	trap_cfi_gprs_live
 	erets
+	.cfi_endproc
 fred_events_handlers_end:
 
 	.globl	fred_out_of_nmi
