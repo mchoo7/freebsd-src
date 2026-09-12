@@ -41,7 +41,8 @@
 #include <sys/ucontext.h>
 
 /*
- * NOTE: keep this structure in sync with struct reg and struct mcontext.
+ * NOTE: keep this structure in sync with struct reg, struct mcontext, and the
+ * trap frame CFI information.
  */
 struct trapframe {
 	uint64_t tf_ra;
