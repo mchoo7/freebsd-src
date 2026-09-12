@@ -1,0 +1,251 @@
+.\"
+.\" Copyright (c) 2026 FreeBSD Foundation
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Author: Minsoo Choo <mchoo@FreeBSD.org>
+.\"
+.Dd September 13, 2026
+.Dt TRAP_CFI 9
+.Os
+.Sh NAME
+.Nm trap_cfi_entry ,
+.Nm trap_cfi_saved ,
+.Nm trap_cfi_full ,
+.Nm trap_cfi_machine ,
+.Nm trap_cfi_gprs_live
+.Nd describe kernel trap frames with DWARF call frame information
+.Sh SYNOPSIS
+.In machine/trap_cfi.h
+.Bd -literal -offset indent
+trap_cfi_entry [state]
+
+trap_cfi_saved reg, offset
+trap_cfi_full [mode]
+
+/* AMD64 only */
+trap_cfi_machine [has_err]
+trap_cfi_gprs_live
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+assembly interface emits DWARF call frame information (CFI) for kernel
+exception, interrupt, and synthetic trap frames.
+The information is stored in the loadable
+.Li .eh_frame
+section so that a debugger can unwind through a trap frame in a running
+kernel or kernel core dump without an architecture-specific trap-frame
+unwinder.
+.Pp
+Each supported architecture provides
+.In machine/trap_cfi.h .
+The core macro names are common, while register numbers, trap-frame offsets,
+the final canonical frame address (CFA), and limited lifecycle details are
+architecture-specific.
+The header includes the generated
+.Pa assym.inc
+to obtain offsets for the kernel structures being assembled.
+.Pp
+The architecture's ordinary assembly entry and end macros normally own the
+corresponding
+.Ic .cfi_startproc
+and
+.Ic .cfi_endproc
+directives.
+.Nm trap_cfi_entry
+attaches signal-frame rules to the already-open CFI procedure.
+It does not emit either
+.Ic .cfi_startproc
+or
+.Ic .cfi_endproc .
+On 32-bit ARM, whose ordinary procedures use ARM EHABI unwind directives,
+trap assembly instead places raw
+.Ic .cfi_startproc
+and
+.Ic .cfi_endproc
+directives around each DWARF CFI range.
+On AArch64, the
+.Dv ENTRY
+macro accepts an optional CFI preamble argument.
+The preamble is emitted after
+.Ic .cfi_startproc
+and before the entry-point
+.Dv BTI_C
+and
+.Dv DTRACE_NOP
+instructions, so the specified unwind state applies at the entry address.
+.Nm trap_cfi_entry
+marks the FDE as a signal frame, selects the architectural interrupted-PC
+column as the return-address column, initializes the CFA, and initially marks
+the interrupted PC as undefined.
+The
+.Ar state
+argument describes the trap frame at the first instruction in the range:
+.Bl -tag -width terminal
+.It Sy empty
+The trap frame is absent or only partially constructed.
+The assembly must update the CFA and saved-register rules immediately after
+each instruction which changes the stack pointer or saves a register.
+This is the default state.
+.It Sy full
+A complete trap frame already exists at entry.
+The architecture's complete trap-frame register map is installed at the
+first instruction.
+This state is suitable for a nonterminal synthetic frame such as a process
+.Fn fork_trampoline .
+.It Sy terminal
+A synthetic stack frame exists, but it has no caller.
+The macro describes its CFA and leaves the interrupted-PC column explicitly
+undefined.
+A terminal frame must not recover a zero PC from memory as an end-of-stack
+marker.
+.El
+.Pp
+On 32-bit ARM the locations of the interrupted stack pointer and link
+register depend on whether the exception originated in user or privileged
+mode.
+Such code opens an
+.Sy empty
+range and invokes
+.Nm trap_cfi_full
+with a
+.Sy user
+or
+.Sy kernel
+mode argument once the origin is known.
+The
+.Sy full
+entry state is therefore not used on 32-bit ARM.
+.Ss Register rules
+.Nm trap_cfi_saved
+records that the caller value of
+.Ar reg
+is stored in the trap-frame slot at
+.Ar offset .
+The architecture implementation converts the trap-frame offset to an offset
+relative to its final CFA.
+.Pp
+.Nm trap_cfi_full
+installs the complete register map for an already-constructed trap frame.
+It includes all saved general-purpose registers and the interrupted PC.
+Architectures may additionally describe status or control registers which
+have stable DWARF register numbers.
+.Ss AMD64 helpers
+On AMD64,
+.Nm trap_cfi_machine
+describes the five values in the hardware-created machine frame: the
+interrupted instruction pointer, code segment, flags, stack pointer, and stack
+segment.
+It defines the CFA above that frame and records recovery rules for those
+registers.
+The optional
+.Ar has_err
+argument is zero by default.
+When nonzero, it indicates that the processor placed an error-code word before
+the machine frame, and the CFA is adjusted by one additional word.
+The error code itself is not a debugger register and has no recovery rule.
+.Pp
+.Nm trap_cfi_gprs_live
+marks the non-stack general-purpose registers as unchanged from their current
+values.
+It is used after saved registers have been restored and are live in the
+processor rather than addressable in the trap frame.
+It does not change the rules for the instruction pointer, flags, or stack
+pointer; the surrounding assembly describes those values separately.
+These helpers update rules within an existing CFI procedure and do not change
+ownership of its lifecycle.
+.Ss Construction requirements
+CFI rules describe machine state at an instruction address, not merely the
+state eventually reached by the handler.
+Consequently, the following requirements apply:
+.Bl -bullet
+.It
+Update the CFA immediately after every instruction which changes the stack
+pointer.
+.It
+Add a saved-register rule immediately after the instruction which makes the
+saved value available in memory.
+.It
+Use a stable CFA which makes forward stack progress.
+Give the interrupted architectural stack pointer its own recovery rule when
+it differs from the CFA.
+.It
+Use the interrupted-PC slot as the return-address column when the
+architecture has separate PC and link-register columns.
+.It
+Keep entry paths in separate FDE ranges until their unwind rules become
+identical.
+Do not merge differently described wrappers into ambiguous common assembly.
+.It
+Once the trap frame is no longer addressable, mark the interrupted-PC column
+undefined before transferring control to the interrupted context.
+.It
+For a deliberately terminal synthetic state, emit a signal-frame FDE with an
+explicitly undefined return-address column.
+.El
+.Sh EXAMPLES
+The following schematic handler constructs a trap frame incrementally:
+.Bd -literal -offset indent
+ENTRY(exception_handler)
+	trap_cfi_entry empty
+	sub	sp, sp, TF_SIZE
+	.cfi_def_cfa_offset CFI_TF_SIZE
+	store	r0, TF_R0(sp)
+	trap_cfi_saved r0, TF_R0
+	...
+END(exception_handler)
+.Ed
+.Pp
+An AArch64 handler whose complete trap frame exists at entry places the CFI
+preamble inside
+.Dv ENTRY :
+.Bd -literal -offset indent
+ENTRY(exception_handler, trap_cfi_entry full)
+	...
+END(exception_handler)
+.Ed
+.Pp
+On 32-bit ARM, the equivalent DWARF CFI range is opened and closed
+explicitly because the ordinary entry and end macros manage ARM EHABI:
+.Bd -literal -offset indent
+ASENTRY_NP(exception_handler)
+	.cfi_startproc
+	trap_cfi_entry empty
+	...
+	.cfi_endproc
+END(exception_handler)
+.Ed
+.Pp
+A synthetic process-return frame is complete before its first instruction:
+.Bd -literal -offset indent
+ENTRY(fork_trampoline)
+	trap_cfi_entry full
+	...
+END(fork_trampoline)
+.Ed
+.Pp
+A never-run kernel thread has no interrupted caller:
+.Bd -literal -offset indent
+ENTRY(fork_trampoline_kthread)
+	trap_cfi_entry terminal
+	call	fork_exit
+	...
+END(fork_trampoline_kthread)
+.Ed
+.Sh SEE ALSO
+.Xr elf 5
+.\" TODO: Add debuggers like lldb(1) when CFI support is complete.
+.Sh HISTORY
+The
+.Nm trap_cfi
+assembly interface first appeared in
+.Fx 15.2 .
+.Sh AUTHORS
+The
+.Nm trap_cfi
+assembly interface was developed by
+.An Minsoo Choo Aq Mt mchoo@FreeBSD.org
+under sponsorship from the
+.Fx
+Foundation.
