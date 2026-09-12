@@ -64,6 +64,7 @@ SECTIONS
     *(.note.gnu.build-id)
     PROVIDE (__build_id_end = .);
   }
+  .eh_frame : { KEEP (*(.eh_frame)) }
   .sdata2    : { *(.sdata2)  }
   .sbss2     : { *(.sbss2)   }
   /* Adjust the address for the data segment to the next page up. */
