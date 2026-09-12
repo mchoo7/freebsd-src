@@ -56,6 +56,8 @@
 
 /*
  * Trap frame.  Pushed onto the kernel stack on a trap (synchronous exception).
+ *
+ * NOTE: keep this structure in sync with the trap frame CFI information.
  */
 
 struct trapframe {
