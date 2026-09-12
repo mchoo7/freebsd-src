@@ -354,6 +354,7 @@ MAN=	accept_filter.9 \
 	tcp_functions.9 \
 	thread_exit.9 \
 	time.9 \
+	trap_cfi.9 \
 	tvtohz.9 \
 	ucred.9 \
 	uidinfo.9 \
