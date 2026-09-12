@@ -46,11 +46,11 @@
 #define	DTRACE_NOP
 #endif
 
-#define	LENTRY(sym)						\
+#define	LENTRY(sym, ...)					\
 	.text; .align 2; .type sym,#function; sym:		\
-	.cfi_startproc; BTI_C; DTRACE_NOP
-#define	ENTRY(sym)						\
-	.globl sym; LENTRY(sym)
+	.cfi_startproc; __VA_ARGS__; BTI_C; DTRACE_NOP
+#define	ENTRY(sym, ...)						\
+	.globl sym; LENTRY(sym, __VA_ARGS__)
 #define	EENTRY(sym)						\
 	.globl	sym; .text; .align 2; .type sym,#function; sym:
 #define	LEND(sym) .ltorg; .cfi_endproc; .size sym, . - sym
