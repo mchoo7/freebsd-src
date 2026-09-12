@@ -354,6 +354,7 @@ MAN=	accept_filter.9 \
 	tcp_functions.9 \
 	thread_exit.9 \
 	time.9 \
+	trap_cfi.9 \
 	tvtohz.9 \
 	ucred.9 \
 	uidinfo.9 \
@@ -2350,6 +2351,12 @@ MLINKS+=tcp_functions.9 register_tcp_functions.9 \
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9
+MLINKS+=trap_cfi.9 trap_cfi_end.9 \
+	trap_cfi.9 trap_cfi_entry.9 \
+	trap_cfi.9 trap_cfi_gprs_live.9 \
+	trap_cfi.9 trap_cfi_machine.9 \
+	trap_cfi.9 trap_cfi_saved.9 \
+	trap_cfi.9 trap_cfi_trapframe.9
 MLINKS+=ucred.9 crcopy.9 \
 	ucred.9 crcopysafe.9 \
 	ucred.9 crdup.9 \
