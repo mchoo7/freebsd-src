@@ -115,6 +115,8 @@ struct trapframe_vm86 {
  *
  * The ordering of this is specifically so that we can take first 6
  * the syscall arguments directly from the beginning of the frame.
+ *
+ * NOTE: keep this structure in sync with the trap frame CFI information.
  */
 
 struct trapframe {
