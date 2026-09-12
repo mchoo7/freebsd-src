@@ -74,6 +74,7 @@ SECTIONS
   .fini      : { *(.fini)    } =0
   .rodata    : { *(.rodata) *(.gnu.linkonce.r*) }
   .rodata1   : { *(.rodata1) }
+  .eh_frame  : { KEEP (*(.eh_frame)) }
   .sdata2    : { *(.sdata2)  }
   .sbss2     : { *(.sbss2)   }
   /* Adjust the address for the data segment to the next page up. */

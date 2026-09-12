@@ -47,6 +47,8 @@
  * between processes using the FPU.
  *
  * Change ordering to cluster together these register_t's.		XXX
+ *
+ * NOTE: keep this structure in sync with the trap frame CFI information.
  */
 struct trapframe {
 	register_t fixreg[32];
