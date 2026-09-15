@@ -38,6 +38,7 @@
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+#include <sys/malloc.h>
 #include <sys/msgbuf.h>
 #include <sys/watchdog.h>
 #include <vm/vm.h>
@@ -158,6 +159,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	vm_offset_t va, kva_end;
 	int error, i;
 	char *addr;
+	pt2_entry_t *dump_ptes;
 
 	/*
 	 * Flush caches.  Note that in the SMP case this operates only on the
@@ -179,7 +181,17 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	 */
 	ptesize = 0;
 	for (va = KERNBASE; va < kva_end; va += PAGE_SIZE) {
-		pa = pmap_dump_kextract(va, NULL);
+		ptesize += sizeof(pt2_entry_t);
+	}
+	dump_ptes = malloc(ptesize, M_TEMP, M_NOWAIT | M_ZERO);
+	if (dump_ptes == NULL) {
+		printf("Unable to allocate ARM minidump page table\n");
+		return (ENOMEM);
+	}
+	ptesize = 0;
+	for (va = KERNBASE; va < kva_end; va += PAGE_SIZE) {
+		pa = pmap_dump_kextract(va, &dump_ptes[ptesize /
+		    sizeof(pt2_entry_t)]);
 		if (pa != 0 && vm_phys_is_dumpable(pa))
 			vm_page_dump_add(state->dump_bitset, pa);
 		ptesize += sizeof(pt2_entry_t);
@@ -258,21 +270,14 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		goto fail;
 
 	/* Dump kernel page table pages */
-	addr = dumpbuf;
-	for (va = KERNBASE; va < kva_end; va += PAGE_SIZE) {
-		pmap_dump_kextract(va, (pt2_entry_t *)addr);
-		addr += sizeof(pt2_entry_t);
-		if (addr == dumpbuf + sizeof(dumpbuf)) {
-			error = blk_write(di, dumpbuf, 0, sizeof(dumpbuf));
-			if (error != 0)
-				goto fail;
-			addr = dumpbuf;
-		}
-	}
-	if (addr != dumpbuf) {
-		error = blk_write(di, dumpbuf, 0, addr - dumpbuf);
+	addr = (char *)dump_ptes;
+	for (uint32_t left = ptesize; left != 0; ) {
+		uint32_t chunk = MIN(left, (uint32_t)sizeof(dumpbuf));
+		error = blk_write(di, addr, 0, chunk);
 		if (error != 0)
 			goto fail;
+		addr += chunk;
+		left -= chunk;
 	}
 
 	/* Dump memory chunks */
@@ -306,6 +311,8 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		goto fail;
 
 	error = dump_finish(di, &kdh);
+	free(dump_ptes, M_TEMP);
+	dump_ptes = NULL;
 	if (error != 0)
 		goto fail;
 
@@ -313,6 +320,8 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	return (0);
 
 fail:
+	if (dump_ptes != NULL)
+		free(dump_ptes, M_TEMP);
 	if (error < 0)
 		error = -error;
 
