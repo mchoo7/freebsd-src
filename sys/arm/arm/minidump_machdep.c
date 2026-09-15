@@ -213,6 +213,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	mdhdr.arch = __ARM_ARCH;
 	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V6;
 	mdhdr.dumpavailsize = round_page(nitems(dump_avail) * sizeof(uint64_t));
+	mdhdr.kernvirtaddr = KERNVIRTADDR;
 
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION,
 	    dumpsize);

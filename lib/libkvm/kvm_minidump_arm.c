@@ -123,6 +123,7 @@ _arm_minidump_initvtop(kvm_t *kd)
 	}
 	vmst->hdr.dumpavailsize = vmst->hdr.version == MINIDUMP_VERSION ?
 	    _kvm32toh(kd, vmst->hdr.dumpavailsize) : 0;
+	vmst->hdr.kernvirtaddr = _kvm32toh(kd, vmst->hdr.kernvirtaddr);
 
 	/* Skip header and msgbuf */
 	dump_avail_off = ARM_PAGE_SIZE + arm_round_page(vmst->hdr.msgbufsize);
@@ -264,6 +265,16 @@ _arm_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 	return (1);
 }
 
+static kssize_t
+_arm_minidump_kerndisp(kvm_t *kd)
+{
+	struct vmstate *vm = kd->vmst;
+
+	if (vm->hdr.kernvirtaddr == 0)
+		return (0);
+	return ((kssize_t)vm->hdr.kernvirtaddr - vm->hdr.kernbase);
+}
+
 static struct kvm_arch kvm_arm_minidump = {
 	.ka_probe = _arm_minidump_probe,
 	.ka_initvtop = _arm_minidump_initvtop,
@@ -271,6 +282,7 @@ static struct kvm_arch kvm_arm_minidump = {
 	.ka_kvatop = _arm_minidump_kvatop,
 	.ka_native = _arm_native,
 	.ka_walk_pages = _arm_minidump_walk_pages,
+	.ka_kerndisp = _arm_minidump_kerndisp,
 };
 
 KVM_ARCH(kvm_arm_minidump);

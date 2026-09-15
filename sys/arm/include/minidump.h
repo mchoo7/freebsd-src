@@ -51,6 +51,7 @@ struct minidumphdr {
 	uint32_t arch;
 	uint32_t mmuformat;
 	uint32_t dumpavailsize;
+	uint32_t kernvirtaddr;
 };
 
 #define MINIDUMP_MMU_FORMAT_UNKNOWN	0
