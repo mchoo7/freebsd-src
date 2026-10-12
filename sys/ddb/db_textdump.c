@@ -428,7 +428,7 @@ textdump_dump_version(struct dumperinfo *di)
 void
 textdump_dumpsys(struct dumperinfo *di)
 {
-	struct kerneldumpcrypto *kdc;
+	struct dump_crypto *kdc;
 	off_t dumplen, trailer_offset;
 
 	if (di->blocksize != TEXTDUMP_BLOCKSIZE) {

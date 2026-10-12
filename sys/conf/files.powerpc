@@ -397,7 +397,6 @@ powerpc/powerpc/db_disasm.c	optional	ddb
 powerpc/powerpc/db_hwwatch.c	optional	ddb
 powerpc/powerpc/db_interface.c	optional	ddb
 powerpc/powerpc/db_trace.c	optional	ddb
-powerpc/powerpc/dump_machdep.c	standard
 powerpc/powerpc/elf32_machdep.c	optional	powerpc | compat_freebsd32
 powerpc/powerpc/elf64_machdep.c	optional	powerpc64 | powerpc64le
 powerpc/powerpc/exec_machdep.c	standard
@@ -408,7 +407,7 @@ powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/iommu_if.m	standard
 powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/mem.c		optional	mem
-powerpc/powerpc/minidump_machdep.c	optional	powerpc64 | powerpc64le
+powerpc/powerpc/dump_mini_machdep.c	standard
 powerpc/powerpc/mp_machdep.c	optional	smp
 powerpc/powerpc/nexus.c		standard
 powerpc/powerpc/openpic.c	standard

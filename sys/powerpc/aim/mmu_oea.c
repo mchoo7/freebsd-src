@@ -321,8 +321,8 @@ void moea_kenter(vm_offset_t, vm_paddr_t);
 void moea_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 int moea_dev_direct_mapped(vm_paddr_t, vm_size_t);
 static void moea_sync_icache(pmap_t, vm_offset_t, vm_size_t);
-void moea_dumpsys_map(vm_paddr_t pa, size_t sz, void **va);
-void moea_scan_init(void);
+void dump_full_moea_map_chunk(vm_paddr_t pa, size_t sz, void **va);
+void dump_full_moea_pa_init(void);
 void *moea_quick_enter_page(vm_page_t m);
 void moea_quick_remove_page(void *addr);
 bool moea_page_is_mapped(vm_page_t m);
@@ -382,8 +382,8 @@ static struct pmap_funcs moea_methods = {
 	.kenter = moea_kenter,
 	.kenter_attr = moea_kenter_attr,
 	.dev_direct_mapped = moea_dev_direct_mapped,
-	.dumpsys_pa_init = moea_scan_init,
-	.dumpsys_map_chunk = moea_dumpsys_map,
+	.dump_full_pa_init = dump_full_moea_pa_init,
+	.dump_full_map_chunk = dump_full_moea_map_chunk,
 	.map_user_ptr = moea_map_user_ptr,
 	.decode_kernel_ptr =  moea_decode_kernel_ptr,
 };
@@ -2772,23 +2772,22 @@ moea_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 }
 
 void
-moea_dumpsys_map(vm_paddr_t pa, size_t sz, void **va)
+dump_full_moea_map_chunk(vm_paddr_t pa, size_t sz, void **va)
 {
-
 	*va = (void *)pa;
 }
 
 extern struct dump_pa dump_map[PHYS_AVAIL_SZ + 1];
 
 void
-moea_scan_init(void)
+dump_full_moea_pa_init(void)
 {
 	struct pvo_entry *pvo;
 	vm_offset_t va;
 	int i;
 
-	if (!do_minidump) {
-		/* Initialize phys. segments for dumpsys(). */
+	if (dump_format == DUMP_FULL) {
+		/* Initialize phys. segments for dump(). */
 		memset(&dump_map, 0, sizeof(dump_map));
 		mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 		for (i = 0; i < pregions_sz; i++) {

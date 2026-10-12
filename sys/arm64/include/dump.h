@@ -32,44 +32,34 @@
 #ifndef _MACHINE_DUMP_H_
 #define	_MACHINE_DUMP_H_
 
-#define	KERNELDUMP_ARCH_VERSION	KERNELDUMP_AARCH64_VERSION
+#define	DUMP_ARCH_VERSION	KERNELDUMP_AARCH64_VERSION
 #define	EM_VALUE		EM_AARCH64
 /* XXX: I suppose 20 should be enough. */
-#define	DUMPSYS_MD_PA_NPAIRS	20
-#define	DUMPSYS_NUM_AUX_HDRS	1
+#define	DUMP_FULL_MD_PA_NPAIRS	20
+#define	DUMP_FULL_NUM_AUX_HDRS	1
 
 /* How often to check the dump progress bar? */
-#define	DUMPSYS_PB_CHECK_BITS	22	/* Every 4MB */
+#define	DUMP_PB_CHECK_BITS	22	/* Every 4MB */
 
-void dumpsys_wbinv_all(void);
-int dumpsys_write_aux_headers(struct dumperinfo *di);
+void dump_full_wbinv_all(void);
+int dump_full_write_aux_headers(struct dumperinfo *di);
 
 static inline void
-dumpsys_pa_init(void)
+dump_full_pa_init(void)
 {
-
-	dumpsys_gen_pa_init();
+	dump_full_gen_pa_init();
 }
 
 static inline struct dump_pa *
-dumpsys_pa_next(struct dump_pa *p)
+dump_full_pa_next(struct dump_pa *p)
 {
-
-	return (dumpsys_gen_pa_next(p));
+	return (dump_full_gen_pa_next(p));
 }
 
 static inline void
-dumpsys_unmap_chunk(vm_paddr_t pa, size_t s, void *va)
+dump_full_unmap_chunk(vm_paddr_t pa, size_t s, void *va)
 {
-
-	dumpsys_gen_unmap_chunk(pa, s, va);
-}
-
-static inline int
-dumpsys(struct dumperinfo *di)
-{
-
-	return (dumpsys_generic(di));
+	dump_full_gen_unmap_chunk(pa, s, va);
 }
 
 #endif  /* !_MACHINE_DUMP_H_ */

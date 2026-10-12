@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 6, 2025
+.Dd October 12, 2026
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -208,12 +208,14 @@ All of these options can be specified in the
 variable
 .Va dumpon_flags .
 .Ss Minidumps
-The default type of kernel crash dump is the mini crash dump.
+The default type of kernel crash dump is the mini crash dump on systems that
+support it, or a full crash dump otherwise.
 Mini crash dumps hold only memory pages in use by the kernel.
 Alternatively, full memory dumps can be enabled by setting the
-.Va debug.minidump
+.Va debug.dump.format
 .Xr sysctl 8
-variable to 0.
+variable to
+.Ql full .
 .Ss Full dumps
 For systems using full memory dumps, the size of the specified dump
 device must be at least the size of physical memory.
@@ -233,10 +235,26 @@ The following
 .Xr sysctl 8
 variables can be used to modify or monitor the behavior of crash dumps:
 .Bl -tag -width "machdep.dump_retry_count"
-.It Va debug.minidump
+.It Va debug.dump.format
 Set the type of kernel crash dump.
-Possible values are 0 for a full crash dump or 1 for a minidump.
-The default is minidump.
+Possible values are
+.Ql full
+for a full crash dump or
+.Ql mini
+for a minidump.
+The default is
+.Ql mini
+on systems that support minidumps, or
+.Ql full
+otherwise.
+Selecting
+.Ql mini
+on a system without minidump support fails with
+.Er EOPNOTSUPP .
+.It Va debug.minidump
+Compatibility alias for
+.Va debug.dump.format .
+A value of 0 selects a full crash dump, and a nonzero value selects a minidump.
 .It Va machdep.dump_retry_count
 The maximum number of times dump will retry before giving up.
 The default value is 5.

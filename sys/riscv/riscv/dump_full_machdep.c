@@ -38,18 +38,12 @@
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kerneldump.h>
-#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-int do_minidump = 1;
-SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &do_minidump, 0,
-    "Enable mini crash dumps");
-
 void
-dumpsys_map_chunk(vm_paddr_t pa, size_t chunk, void **va)
+dump_full_map_chunk(vm_paddr_t pa, size_t chunk, void **va)
 {
-
-	printf("dumpsys_map_chunk\n");
+	printf("dump_full_map_chunk\n");
 }

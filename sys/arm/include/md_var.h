@@ -50,10 +50,6 @@ enum cpu_class {
 };
 extern enum cpu_class cpu_class;
 
-struct dumperinfo;
-struct minidumpstate;
-int cpu_minidumpsys(struct dumperinfo *, const struct minidumpstate *);
-
 extern uint32_t initial_fpscr;
 
 #endif /* !_MACHINE_MD_VAR_H_ */

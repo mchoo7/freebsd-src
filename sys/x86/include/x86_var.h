@@ -160,7 +160,6 @@ void	pagecopy(void *from, void *to);
 void	printcpuinfo(void);
 int	pti_get_default(void);
 int	user_dbreg_trap(register_t dr6);
-int	cpu_minidumpsys(struct dumperinfo *, const struct minidumpstate *);
 struct pcb *get_pcb_td(struct thread *td);
 void	x86_set_fork_retval(struct thread *td);
 uint64_t rdtsc_ordered(void);

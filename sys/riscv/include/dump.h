@@ -28,56 +28,44 @@
 #ifndef _MACHINE_DUMP_H_
 #define	_MACHINE_DUMP_H_
 
-#define	KERNELDUMP_ARCH_VERSION	KERNELDUMP_RISCV_VERSION
+#define	DUMP_ARCH_VERSION	KERNELDUMP_RISCV_VERSION
 #define	EM_VALUE		EM_RISCV
 
 /* 20 phys_avail entry pairs correspond to 10 pa's */
-#define	DUMPSYS_MD_PA_NPAIRS	10
-#define	DUMPSYS_NUM_AUX_HDRS	0
+#define	DUMP_FULL_MD_PA_NPAIRS	10
+#define	DUMP_FULL_NUM_AUX_HDRS	0
 
 /* How often to check the dump progress bar? */
-#define	DUMPSYS_PB_CHECK_BITS	22	/* Every 4MB */
+#define	DUMP_PB_CHECK_BITS	22	/* Every 4MB */
 
 static inline void
-dumpsys_pa_init(void)
+dump_full_pa_init(void)
 {
-
-	dumpsys_gen_pa_init();
+	dump_full_gen_pa_init();
 }
 
 static inline struct dump_pa *
-dumpsys_pa_next(struct dump_pa *p)
+dump_full_pa_next(struct dump_pa *p)
 {
-
-	return (dumpsys_gen_pa_next(p));
+	return (dump_full_gen_pa_next(p));
 }
 
 static inline void
-dumpsys_wbinv_all(void)
+dump_full_wbinv_all(void)
 {
-
-	dumpsys_gen_wbinv_all();
+	dump_full_gen_wbinv_all();
 }
 
 static inline void
-dumpsys_unmap_chunk(vm_paddr_t pa, size_t s, void *va)
+dump_full_unmap_chunk(vm_paddr_t pa, size_t s, void *va)
 {
-
-	dumpsys_gen_unmap_chunk(pa, s, va);
+	dump_full_gen_unmap_chunk(pa, s, va);
 }
 
 static inline int
-dumpsys_write_aux_headers(struct dumperinfo *di)
+dump_full_write_aux_headers(struct dumperinfo *di)
 {
-
-	return (dumpsys_gen_write_aux_headers(di));
-}
-
-static inline int
-dumpsys(struct dumperinfo *di)
-{
-
-	return (dumpsys_generic(di));
+	return (dump_full_gen_write_aux_headers(di));
 }
 
 #endif  /* !_MACHINE_DUMP_H_ */

@@ -49,9 +49,4 @@ extern bool has_svpbmt;
 extern bool has_vector;
 extern bool has_svinval;
 
-struct dumperinfo;
-struct minidumpstate;
-
-int cpu_minidumpsys(struct dumperinfo *, const struct minidumpstate *);
-
 #endif /* !_MACHINE_MD_VAR_H_ */

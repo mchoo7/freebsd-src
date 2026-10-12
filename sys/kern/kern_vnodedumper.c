@@ -135,7 +135,7 @@ livedump_start_vnode(struct vnode *vp, int flags, uint8_t compression)
 
 	curthread->td_pflags2 |= TDP2_SAN_QUIET;
 	dump_savectx();
-	error = minidumpsys(livedi, true);
+	error = dump_mini(livedi, true);
 	curthread->td_pflags2 &= ~TDP2_SAN_QUIET;
 
 	EVENTHANDLER_INVOKE(livedumper_finish);
@@ -162,7 +162,7 @@ vnode_dumper_start(struct dumperinfo *di, void *key, uint32_t keysize)
 }
 
 /*
- * Callback from dumpsys() to dump a chunk of memory.
+ * Callback from dump() to dump a chunk of memory.
  *
  * Parameters:
  *	arg	 Opaque private pointer to vnode
@@ -201,7 +201,7 @@ vnode_dump(void *arg, void *virtual, off_t offset, size_t length)
 }
 
 /*
- * Callback from dumpsys() to write out the dump header, placed at the end.
+ * Callback from dump() to write out the dump header, placed at the end.
  */
 int
 vnode_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)

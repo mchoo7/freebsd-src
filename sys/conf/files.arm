@@ -19,7 +19,7 @@ arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
 arm/arm/debug_monitor.c		optional	ddb | gdb
 arm/arm/disassem.c		optional	ddb
-arm/arm/dump_machdep.c		standard
+arm/arm/dump_full_machdep.c		standard
 arm/arm/elf_machdep.c		standard
 arm/arm/elf_note.S		standard
 arm/arm/exception.S		standard
@@ -42,7 +42,7 @@ arm/arm/machdep_kdb.c		standard
 arm/arm/machdep_intr.c		standard
 arm/arm/machdep_ptrace.c	standard
 arm/arm/mem.c			optional	mem
-arm/arm/minidump_machdep.c	standard
+arm/arm/dump_mini_machdep.c	standard
 arm/arm/mp_machdep.c		optional	smp
 arm/arm/mpcore_timer.c		optional	mpcore_timer
 arm/arm/nexus.c			standard

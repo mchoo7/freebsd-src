@@ -180,7 +180,7 @@ FEATURE(ekcd, "Encrypted kernel crash dumps support");
 
 MALLOC_DEFINE(M_EKCD, "ekcd", "Encrypted kernel crash dumps data");
 
-struct kerneldumpcrypto {
+struct dump_crypto {
 	uint8_t			kdc_encryption;
 	uint8_t			kdc_iv[KERNELDUMP_IV_MAX_SIZE];
 	union {
@@ -198,21 +198,21 @@ struct kerneldumpcrypto {
 };
 #endif
 
-struct kerneldumpcomp {
+struct dump_comp {
 	uint8_t			kdc_format;
 	struct compressor	*kdc_stream;
 	uint8_t			*kdc_buf;
 	size_t			kdc_resid;
 };
 
-static struct kerneldumpcomp *kerneldumpcomp_create(struct dumperinfo *di,
+static struct dump_comp *dump_comp_create(struct dumperinfo *di,
 		    uint8_t compression);
-static void	kerneldumpcomp_destroy(struct dumperinfo *di);
-static int	kerneldumpcomp_write_cb(void *base, size_t len, off_t off, void *arg);
+static void	dump_comp_destroy(struct dumperinfo *di);
+static int	dump_comp_write_cb(void *base, size_t len, off_t off, void *arg);
 
-static int kerneldump_gzlevel = 6;
+static int dump_gzlevel = 6;
 SYSCTL_INT(_kern, OID_AUTO, kerneldump_gzlevel, CTLFLAG_RWTUN,
-    &kerneldump_gzlevel, 0,
+    &dump_gzlevel, 0,
     "Kernel crash dump compression level");
 
 /*
@@ -410,7 +410,7 @@ doadump(boolean_t textdump)
 		struct dumperinfo *di;
 
 		TAILQ_FOREACH(di, &dumper_configs, di_next) {
-			error = dumpsys(di);
+			error = dump(di);
 			if (error == 0) {
 				dumped_core = true;
 				break;
@@ -1083,11 +1083,11 @@ SYSCTL_PROC(_kern_shutdown, OID_AUTO, dumpdevname,
 static int _dump_append(struct dumperinfo *di, void *virtual, size_t length);
 
 #ifdef EKCD
-static struct kerneldumpcrypto *
-kerneldumpcrypto_create(size_t blocksize, uint8_t encryption,
+static struct dump_crypto *
+dump_crypto_create(size_t blocksize, uint8_t encryption,
     const uint8_t *key, uint32_t encryptedkeysize, const uint8_t *encryptedkey)
 {
-	struct kerneldumpcrypto *kdc;
+	struct dump_crypto *kdc;
 	struct kerneldumpkey *kdk;
 	uint32_t dumpkeysize;
 
@@ -1123,7 +1123,7 @@ failed:
 }
 
 static int
-kerneldumpcrypto_init(struct kerneldumpcrypto *kdc)
+dump_crypto_init(struct dump_crypto *kdc)
 {
 	uint8_t hash[SHA256_DIGEST_LENGTH];
 	SHA256_CTX ctx;
@@ -1168,19 +1168,18 @@ out:
 }
 
 static uint32_t
-kerneldumpcrypto_dumpkeysize(const struct kerneldumpcrypto *kdc)
+dump_crypto_dumpkeysize(const struct dump_crypto *kdc)
 {
-
 	if (kdc == NULL)
 		return (0);
 	return (kdc->kdc_dumpkeysize);
 }
 #endif /* EKCD */
 
-static struct kerneldumpcomp *
-kerneldumpcomp_create(struct dumperinfo *di, uint8_t compression)
+static struct dump_comp *
+dump_comp_create(struct dumperinfo *di, uint8_t compression)
 {
-	struct kerneldumpcomp *kdcomp;
+	struct dump_comp *kdcomp;
 	int format;
 
 	switch (compression) {
@@ -1196,8 +1195,8 @@ kerneldumpcomp_create(struct dumperinfo *di, uint8_t compression)
 
 	kdcomp = malloc(sizeof(*kdcomp), M_DUMPER, M_WAITOK | M_ZERO);
 	kdcomp->kdc_format = compression;
-	kdcomp->kdc_stream = compressor_init(kerneldumpcomp_write_cb,
-	    format, di->maxiosize, kerneldump_gzlevel, di);
+	kdcomp->kdc_stream = compressor_init(dump_comp_write_cb,
+	    format, di->maxiosize, dump_gzlevel, di);
 	if (kdcomp->kdc_stream == NULL) {
 		free(kdcomp, M_DUMPER);
 		return (NULL);
@@ -1207,9 +1206,9 @@ kerneldumpcomp_create(struct dumperinfo *di, uint8_t compression)
 }
 
 static void
-kerneldumpcomp_destroy(struct dumperinfo *di)
+dump_comp_destroy(struct dumperinfo *di)
 {
-	struct kerneldumpcomp *kdcomp;
+	struct dump_comp *kdcomp;
 
 	kdcomp = di->kdcomp;
 	if (kdcomp == NULL)
@@ -1230,7 +1229,7 @@ dumper_destroy(struct dumperinfo *di)
 		return;
 
 	zfree(di->blockbuf, M_DUMPER);
-	kerneldumpcomp_destroy(di);
+	dump_comp_destroy(di);
 #ifdef EKCD
 	zfree(di->kdcrypto, M_EKCD);
 #endif
@@ -1261,7 +1260,7 @@ dumper_create(const struct dumperinfo *di_template, const char *devname,
 
 	if (kda->kda_encryption != KERNELDUMP_ENC_NONE) {
 #ifdef EKCD
-		newdi->kdcrypto = kerneldumpcrypto_create(newdi->blocksize,
+		newdi->kdcrypto = dump_crypto_create(newdi->blocksize,
 		    kda->kda_encryption, kda->kda_key,
 		    kda->kda_encryptedkeysize, kda->kda_encryptedkey);
 		if (newdi->kdcrypto == NULL) {
@@ -1286,7 +1285,7 @@ dumper_create(const struct dumperinfo *di_template, const char *devname,
 			goto cleanup;
 		}
 #endif
-		newdi->kdcomp = kerneldumpcomp_create(newdi,
+		newdi->kdcomp = dump_comp_create(newdi,
 		    kda->kda_compression);
 		if (newdi->kdcomp == NULL) {
 			error = EINVAL;
@@ -1467,9 +1466,8 @@ dump_check_bounds(struct dumperinfo *di, off_t offset, size_t length)
 
 #ifdef EKCD
 static int
-dump_encrypt(struct kerneldumpcrypto *kdc, uint8_t *buf, size_t size)
+dump_encrypt(struct dump_crypto *kdc, uint8_t *buf, size_t size)
 {
-
 	switch (kdc->kdc_encryption) {
 	case KERNELDUMP_ENC_AES_256_CBC:
 		if (rijndael_blockEncrypt(&kdc->kdc_ci, &kdc->kdc_ki, buf,
@@ -1497,7 +1495,7 @@ dump_encrypted_write(struct dumperinfo *di, void *virtual, off_t offset,
     size_t length)
 {
 	static uint8_t buf[KERNELDUMP_BUFFER_SIZE];
-	struct kerneldumpcrypto *kdc;
+	struct dump_crypto *kdc;
 	int error;
 	size_t nbytes;
 
@@ -1524,7 +1522,7 @@ dump_encrypted_write(struct dumperinfo *di, void *virtual, off_t offset,
 #endif /* EKCD */
 
 static int
-kerneldumpcomp_write_cb(void *base, size_t length, off_t offset, void *arg)
+dump_comp_write_cb(void *base, size_t length, off_t offset, void *arg)
 {
 	struct dumperinfo *di;
 	size_t resid, rlength;
@@ -1563,7 +1561,7 @@ static int
 dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
 #ifdef EKCD
-	struct kerneldumpcrypto *kdc;
+	struct dump_crypto *kdc;
 #endif
 	void *buf;
 	size_t hdrsz;
@@ -1577,7 +1575,7 @@ dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 
 #ifdef EKCD
 	kdc = di->kdcrypto;
-	keysize = kerneldumpcrypto_dumpkeysize(kdc);
+	keysize = dump_crypto_dumpkeysize(kdc);
 #else
 	keysize = 0;
 #endif
@@ -1647,7 +1645,7 @@ int
 dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
 #ifdef EKCD
-	struct kerneldumpcrypto *kdc;
+	struct dump_crypto *kdc;
 #endif
 	void *key;
 	uint64_t dumpextent, span;
@@ -1657,10 +1655,10 @@ dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh)
 #ifdef EKCD
 	/* Send the key before the dump so a partial dump is still usable. */
 	kdc = di->kdcrypto;
-	error = kerneldumpcrypto_init(kdc);
+	error = dump_crypto_init(kdc);
 	if (error != 0)
 		return (error);
-	keysize = kerneldumpcrypto_dumpkeysize(kdc);
+	keysize = dump_crypto_dumpkeysize(kdc);
 	key = keysize > 0 ? kdc->kdc_dumpkey : NULL;
 #else
 	error = 0;
@@ -1809,7 +1807,7 @@ dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
 	kdh->dumpextent = kdh->dumplength;
 	kdh->dumptime = htod64(time_second);
 #ifdef EKCD
-	kdh->dumpkeysize = htod32(kerneldumpcrypto_dumpkeysize(di->kdcrypto));
+	kdh->dumpkeysize = htod32(dump_crypto_dumpkeysize(di->kdcrypto));
 #else
 	kdh->dumpkeysize = 0;
 #endif

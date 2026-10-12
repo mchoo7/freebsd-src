@@ -26,12 +26,50 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#include "opt_watchdog.h"
+
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kerneldump.h>
-#include <sys/sysctl.h>
+#include <sys/systm.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
-int do_minidump = 1;
-SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &do_minidump, 0,
-    "Enable mini crash dumps");
+#ifdef __amd64__
+#include <machine/elf.h>
+#include <machine/vmparam.h>
+#include <machine/md_var.h>
+#include <machine/dump.h>
+#endif
+
+void
+dump_full_map_chunk(vm_paddr_t pa, size_t chunk, void **va)
+{
+	int i;
+	vm_paddr_t a;
+
+	for (i = 0; i < chunk; i++) {
+		a = pa + i * PAGE_SIZE;
+		*va = pmap_kenter_temporary(trunc_page(a), i);
+	}
+}
+
+#ifdef __amd64__
+int
+dump_full_write_aux_headers(struct dumperinfo *di)
+{
+	Elf_Phdr phdr;
+
+	phdr.p_type = PT_DUMP_DELTA;
+	phdr.p_flags = PF_R;
+	phdr.p_offset = 0;
+	phdr.p_vaddr = KERNBASE;
+	phdr.p_paddr = kernphys;
+	phdr.p_filesz = 0;
+	phdr.p_memsz = 0;
+	phdr.p_align = KERNLOAD;
+
+	return (dump_full_buf_write(di, (char *)&phdr, sizeof(phdr)));
+}
+#endif

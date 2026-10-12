@@ -98,7 +98,7 @@ static int	 netdump_start(struct dumperinfo *di, void *key,
 		    uint32_t keysize);
 static void	 netdump_unconfigure(void);
 
-/* Must be at least as big as the chunks dumpsys() gives us. */
+/* Must be at least as big as the chunks dump() gives us. */
 static unsigned char nd_buf[MAXDUMPPGS * PAGE_SIZE];
 static int dump_failed;
 
@@ -219,7 +219,7 @@ netdump_flush_buf(void)
 }
 
 /*
- * Callback from dumpsys() to dump a chunk of memory.
+ * Callback from dump() to dump a chunk of memory.
  * Copies it out to our static buffer then sends it across the network.
  * Detects the initial KDH and makes sure it is given a special packet type.
  *

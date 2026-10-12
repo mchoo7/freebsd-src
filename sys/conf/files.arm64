@@ -46,7 +46,7 @@ arm64/arm64/db_interface.c			optional ddb
 arm64/arm64/db_trace.c				optional ddb
 arm64/arm64/debug_monitor.c			standard
 arm64/arm64/disassem.c				optional ddb
-arm64/arm64/dump_machdep.c			standard
+arm64/arm64/dump_full_machdep.c			standard
 arm64/arm64/efirt_machdep.c			optional efirt
 arm64/arm64/efirt_support.S			optional efirt
 arm64/arm64/elf32_machdep.c			optional compat_freebsd32
@@ -74,7 +74,7 @@ arm64/arm64/mem.c				standard
 arm64/arm64/memcmp.S				standard
 arm64/arm64/memcpy.S				standard
 arm64/arm64/memset.S				standard
-arm64/arm64/minidump_machdep.c			standard
+arm64/arm64/dump_mini_machdep.c			standard
 arm64/arm64/mp_machdep.c			optional smp
 arm64/arm64/nexus.c				standard
 arm64/arm64/ofw_machdep.c			optional fdt

@@ -65,7 +65,7 @@ riscv/riscv/cpufunc_asm.S	standard
 riscv/riscv/db_disasm.c		optional	ddb
 riscv/riscv/db_interface.c	optional	ddb
 riscv/riscv/db_trace.c		optional	ddb
-riscv/riscv/dump_machdep.c	standard
+riscv/riscv/dump_full_machdep.c	standard
 riscv/riscv/elf_machdep.c	standard
 riscv/riscv/exception.S		standard
 riscv/riscv/exec_machdep.c	standard
@@ -75,7 +75,7 @@ riscv/riscv/intc.c		standard
 riscv/riscv/identcpu.c		standard
 riscv/riscv/locore.S		standard	no-obj
 riscv/riscv/machdep.c		standard
-riscv/riscv/minidump_machdep.c	standard
+riscv/riscv/dump_mini_machdep.c	standard
 riscv/riscv/mp_machdep.c	optional	smp
 riscv/riscv/mem.c		standard
 riscv/riscv/nexus.c		standard

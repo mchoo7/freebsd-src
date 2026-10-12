@@ -339,7 +339,7 @@ int dev_stdclone(char *_name, char **_namep, const char *_stem, int *_unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 
 /* Stuff relating to kernel-dump */
-struct kerneldumpcrypto;
+struct dump_crypto;
 struct kerneldumpheader;
 
 struct dumperinfo {
@@ -356,8 +356,8 @@ struct dumperinfo {
 	void	*blockbuf;	/* Buffer for padding shorter dump blocks */
 	off_t	dumpoff;	/* Offset of ongoing kernel dump. */
 	off_t	origdumpoff;	/* Starting dump offset. */
-	struct kerneldumpcrypto	*kdcrypto; /* Kernel dump crypto. */
-	struct kerneldumpcomp *kdcomp; /* Kernel dump compression. */
+	struct dump_crypto	*kdcrypto; /* Kernel dump crypto. */
+	struct dump_comp *kdcomp; /* Kernel dump compression. */
 
 	TAILQ_ENTRY(dumperinfo)	di_next;
 
@@ -371,8 +371,8 @@ extern bool dumped_core;	/* system successfully dumped kernel core */
  * Save registers for later extraction from a kernel dump.
  *
  * This must be inlined into the caller, which in turn must be the function that
- * calls (mini)dumpsys().  Otherwise, the saved frame pointer will reference a
- * stack frame that may be clobbered by subsequent function calls.
+ * calls dump() or dump_mini().  Otherwise, the saved frame pointer
+ * will reference a stack frame that may be clobbered by subsequent function calls.
  */
 #define	dump_savectx() do {		\
 	extern struct pcb dumppcb;	\

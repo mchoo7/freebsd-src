@@ -116,11 +116,12 @@ pmap_nomethod(void)
 		f = PMAP_RESOLVE_FUNC(func);				\
 		return (f != NULL ? f : (pmap_##func##_t)pmap_nomethod);\
 	}
-#define DEFINE_DUMPSYS_IFUNC(ret, func, args) 				\
-	DEFINE_IFUNC(, ret, dumpsys_##func, args) {			\
-		pmap_dumpsys_##func##_t f;				\
-		f = PMAP_RESOLVE_FUNC(dumpsys_##func);			\
-		return (f != NULL ? f : (pmap_dumpsys_##func##_t)pmap_nomethod);\
+#define DEFINE_DUMP_IFUNC(ret, format, func, args)			\
+	DEFINE_IFUNC(, ret, dump_##format##_##func, args) {		\
+		pmap_dump_##format##_##func##_t f;			\
+		f = PMAP_RESOLVE_FUNC(dump_##format##_##func);		\
+		return (f != NULL ? f :					\
+		    (pmap_dump_##format##_##func##_t)pmap_nomethod);	\
 	}
 
 DEFINE_PMAP_IFUNC(void, activate, (struct thread *));
@@ -189,12 +190,12 @@ DEFINE_PMAP_IFUNC(int, change_attr, (void *, vm_size_t, vm_memattr_t));
 DEFINE_PMAP_IFUNC(void, page_array_startup, (long));
 DEFINE_PMAP_IFUNC(void, tlbie_all, (void));
 
-DEFINE_DUMPSYS_IFUNC(void, map_chunk, (vm_paddr_t, size_t, void **));
-DEFINE_DUMPSYS_IFUNC(void, unmap_chunk, (vm_paddr_t, size_t, void *));
-DEFINE_DUMPSYS_IFUNC(void, pa_init, (void));
-DEFINE_DUMPSYS_IFUNC(size_t, scan_pmap, (struct bitset *));
-DEFINE_DUMPSYS_IFUNC(void *, dump_pmap_init, (unsigned));
-DEFINE_DUMPSYS_IFUNC(void *, dump_pmap, (void *, void *, u_long *));
+DEFINE_DUMP_IFUNC(void, full, map_chunk, (vm_paddr_t, size_t, void **));
+DEFINE_DUMP_IFUNC(void, full, unmap_chunk, (vm_paddr_t, size_t, void *));
+DEFINE_DUMP_IFUNC(void, full, pa_init, (void));
+DEFINE_DUMP_IFUNC(size_t, mini, scan_pmap, (struct bitset *));
+DEFINE_DUMP_IFUNC(void *, mini, pmap_init, (unsigned));
+DEFINE_DUMP_IFUNC(void *, mini, pmap, (void *, void *, u_long *));
 
 /*
  * MMU install routines. Highest priority wins, equal priority also

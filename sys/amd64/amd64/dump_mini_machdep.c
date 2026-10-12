@@ -52,6 +52,12 @@
 #include <machine/minidump.h>
 #include <machine/vmparam.h>
 
+bool
+dump_mini_supported(void)
+{
+	return (true);
+}
+
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
 static struct kerneldumpheader kdh;
@@ -116,7 +122,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			len = sz;
 		progress -= len;
 
-		dumpsys_pb_progress(len);
+		dump_pb_update(len);
 		if (progress <= wdog_next) {
 			wdog_kern_pat(WD_LASTVAL);
 			if (wdog_next > WDOG_DUMP_INTERVAL)
@@ -159,7 +165,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 static pd_entry_t fakepd[NPDEPG];
 
 int
-cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
+dump_mini_machdep(struct dumperinfo *di, const struct minidumpstate *state)
 {
 	uint32_t pmapsize;
 	vm_offset_t va, kva_end;
@@ -270,7 +276,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	dumpsize += PAGE_SIZE;
 
 	wdog_next = progress = dumpsize;
-	dumpsys_pb_init(dumpsize);
+	dump_pb_init(dumpsize);
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));

@@ -408,9 +408,9 @@ void moea64_kenter_attr(vm_offset_t, vm_paddr_t, vm_memattr_t ma);
 void moea64_kenter(vm_offset_t, vm_paddr_t);
 int moea64_dev_direct_mapped(vm_paddr_t, vm_size_t);
 static void moea64_sync_icache(pmap_t, vm_offset_t, vm_size_t);
-void moea64_dumpsys_map(vm_paddr_t pa, size_t sz,
+void dump_full_moea64_map_chunk(vm_paddr_t pa, size_t sz,
     void **va);
-void moea64_scan_init(void);
+void dump_full_moea64_pa_init(void);
 void *moea64_quick_enter_page(vm_page_t m);
 void *moea64_quick_enter_page_dmap(vm_page_t m);
 void moea64_quick_remove_page(void *addr);
@@ -479,10 +479,10 @@ static struct pmap_funcs moea64_methods = {
 	.kenter = moea64_kenter,
 	.kenter_attr = moea64_kenter_attr,
 	.dev_direct_mapped = moea64_dev_direct_mapped,
-	.dumpsys_pa_init = moea64_scan_init,
-	.dumpsys_scan_pmap = moea64_scan_pmap,
-	.dumpsys_dump_pmap_init =    moea64_dump_pmap_init,
-	.dumpsys_map_chunk = moea64_dumpsys_map,
+	.dump_full_pa_init = dump_full_moea64_pa_init,
+	.dump_mini_scan_pmap = moea64_scan_pmap,
+	.dump_mini_pmap_init =    moea64_dump_pmap_init,
+	.dump_full_map_chunk = dump_full_moea64_map_chunk,
 	.map_user_ptr = moea64_map_user_ptr,
 	.decode_kernel_ptr =  moea64_decode_kernel_ptr,
 };
@@ -3222,23 +3222,22 @@ moea64_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 }
 
 void
-moea64_dumpsys_map(vm_paddr_t pa, size_t sz, void **va)
+dump_full_moea64_map_chunk(vm_paddr_t pa, size_t sz, void **va)
 {
-
 	*va = (void *)(uintptr_t)pa;
 }
 
 extern struct dump_pa dump_map[PHYS_AVAIL_SZ + 1];
 
 void
-moea64_scan_init(void)
+dump_full_moea64_pa_init(void)
 {
 	struct pvo_entry *pvo;
 	vm_offset_t va;
 	int i;
 
-	if (!do_minidump) {
-		/* Initialize phys. segments for dumpsys(). */
+	if (dump_format == DUMP_FULL) {
+		/* Initialize phys. segments for dump(). */
 		memset(&dump_map, 0, sizeof(dump_map));
 		mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 		for (i = 0; i < pregions_sz; i++) {

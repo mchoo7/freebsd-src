@@ -42,7 +42,6 @@ extern	int	szsigcode64, szsigcode64_elfv2;
 
 struct	dumperinfo;
 struct	minidumpstate;
-int	cpu_minidumpsys(struct dumperinfo *, const struct minidumpstate *);
 #endif
 
 extern	long	Maxmem;

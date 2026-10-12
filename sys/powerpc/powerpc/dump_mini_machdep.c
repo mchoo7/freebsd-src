@@ -34,6 +34,7 @@
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
@@ -43,7 +44,24 @@
 #include <machine/atomic.h>
 #include <machine/dump.h>
 #include <machine/md_var.h>
+#include <machine/mmuvar.h>
 #include <machine/minidump.h>
+
+bool
+dump_mini_supported(void)
+{
+#if MINIDUMP_PAGE_TRACKING == 1
+	return (mmu_obj != NULL &&
+	    PMAP_RESOLVE_FUNC(dump_mini_scan_pmap) != NULL &&
+	    PMAP_RESOLVE_FUNC(dump_mini_pmap_init) != NULL &&
+	    PMAP_RESOLVE_FUNC(dump_mini_pmap) != NULL);
+#else
+	/* 32-bit PowerPC supports reduced ELF dumps. */
+	return (true);
+#endif
+}
+
+#if MINIDUMP_PAGE_TRACKING == 1
 
 /* Debugging stuff */
 #define	MINIDUMP_DEBUG	0
@@ -130,7 +148,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		if (len > sz)
 			len = sz;
 
-		dumpsys_pb_progress(len);
+		dump_pb_update(len);
 
 		if (ptr) {
 			error = dump_append(di, ptr, len);
@@ -173,10 +191,10 @@ dump_pmap(struct dumperinfo *di)
 	u_long nbytes;
 	int error;
 
-	ctx = dumpsys_dump_pmap_init(sizeof(pgbuf) / PAGE_SIZE);
+	ctx = dump_mini_pmap_init(sizeof(pgbuf) / PAGE_SIZE);
 
 	for (;;) {
-		buf = dumpsys_dump_pmap(ctx, pgbuf, &nbytes);
+		buf = dump_mini_pmap(ctx, pgbuf, &nbytes);
 		if (buf == NULL)
 			break;
 		error = blk_write(di, buf, 0, nbytes);
@@ -188,7 +206,7 @@ dump_pmap(struct dumperinfo *di)
 }
 
 int
-cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
+dump_mini_machdep(struct dumperinfo *di, const struct minidumpstate *state)
 {
 	vm_paddr_t pa;
 	int error, retry_count;
@@ -203,7 +221,7 @@ retry:
 	DBG(total = dumptotal = 0;)
 
 	/* Build set of dumpable pages from kernel pmap */
-	pmapsize = dumpsys_scan_pmap(state->dump_bitset);
+	pmapsize = dump_mini_scan_pmap(state->dump_bitset);
 	if (pmapsize % PAGE_SIZE != 0) {
 		printf("pmapsize not page aligned: 0x%x\n", pmapsize);
 		return (EINVAL);
@@ -223,7 +241,7 @@ retry:
 		else
 			vm_page_dump_drop(state->dump_bitset, pa);
 	}
-	dumpsys_pb_init(dumpsize);
+	dump_pb_init(dumpsize);
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
@@ -336,3 +354,5 @@ dump_total(const char *id, size_t sz)
 		id, sz, total, dumptotal);
 }
 #endif
+
+#endif /* MINIDUMP_PAGE_TRACKING == 1 */

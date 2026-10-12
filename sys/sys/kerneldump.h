@@ -138,27 +138,35 @@ struct minidumpstate {
 	struct bitset	*dump_bitset;
 };
 
-int minidumpsys(struct dumperinfo *, bool);
-int dumpsys_generic(struct dumperinfo *);
+bool dump_mini_supported(void);
+int dump_mini_machdep(struct dumperinfo *, const struct minidumpstate *);
+int dump_mini(struct dumperinfo *, bool);
+int dump(struct dumperinfo *);
+int dump_full(struct dumperinfo *);
 
-void dumpsys_map_chunk(vm_paddr_t, size_t, void **);
-typedef int dumpsys_callback_t(struct dump_pa *, int, void *);
-int dumpsys_foreach_chunk(dumpsys_callback_t, void *);
-int dumpsys_cb_dumpdata(struct dump_pa *, int, void *);
-int dumpsys_buf_seek(struct dumperinfo *, size_t);
-int dumpsys_buf_write(struct dumperinfo *, char *, size_t);
-int dumpsys_buf_flush(struct dumperinfo *);
+void dump_full_map_chunk(vm_paddr_t, size_t, void **);
+typedef int dump_full_callback_t(struct dump_pa *, int, void *);
+int dump_full_foreach_chunk(dump_full_callback_t, void *);
+int dump_full_cb_dumpdata(struct dump_pa *, int, void *);
+int dump_full_buf_seek(struct dumperinfo *, size_t);
+int dump_full_buf_write(struct dumperinfo *, char *, size_t);
+int dump_full_buf_flush(struct dumperinfo *);
 
-void dumpsys_gen_pa_init(void);
-struct dump_pa *dumpsys_gen_pa_next(struct dump_pa *);
-void dumpsys_gen_wbinv_all(void);
-void dumpsys_gen_unmap_chunk(vm_paddr_t, size_t, void *);
-int dumpsys_gen_write_aux_headers(struct dumperinfo *);
+void dump_full_gen_pa_init(void);
+struct dump_pa *dump_full_gen_pa_next(struct dump_pa *);
+void dump_full_gen_wbinv_all(void);
+void dump_full_gen_unmap_chunk(vm_paddr_t, size_t, void *);
+int dump_full_gen_write_aux_headers(struct dumperinfo *);
 
-void dumpsys_pb_init(uint64_t);
-void dumpsys_pb_progress(size_t);
+void dump_pb_init(uint64_t);
+void dump_pb_update(size_t);
 
-extern int do_minidump;
+enum dump_format {
+	DUMP_FULL,
+	DUMP_MINI,
+};
+
+extern int dump_format;
 
 int livedump_start(int, int, uint8_t);
 int livedump_start_vnode(struct vnode *, int, uint8_t);

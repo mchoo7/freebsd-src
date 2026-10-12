@@ -33,4 +33,4 @@
 #include <vm/vm_param.h>
 #include <machine/pmap_nopae.h>
 #include <vm/pmap.h>
-#include "minidump_machdep_base.c"
+#include "dump_mini_machdep_base.c"

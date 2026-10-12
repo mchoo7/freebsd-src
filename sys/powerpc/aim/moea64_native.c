@@ -286,7 +286,7 @@ static struct pmap_funcs moea64_native_methods = {
 	/* Internal interfaces */
 	.bootstrap = moea64_bootstrap_native,
 	.cpu_bootstrap = moea64_cpu_bootstrap_native,
-        .dumpsys_dump_pmap =         moea64_dump_pmap_native,
+        .dump_mini_pmap =         moea64_dump_pmap_native,
 };
 
 static struct moea64_funcs moea64_native_funcs = {

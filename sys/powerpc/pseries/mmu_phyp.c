@@ -87,7 +87,7 @@ static struct pmap_funcs mphyp_methods = {
 	.install =           mphyp_install,
         .bootstrap =         mphyp_bootstrap,
         .cpu_bootstrap =     mphyp_cpu_bootstrap,
-        .dumpsys_dump_pmap = mphyp_dump_pmap,
+        .dump_mini_pmap = mphyp_dump_pmap,
 };
 
 static struct moea64_funcs mmu_phyp_funcs = {

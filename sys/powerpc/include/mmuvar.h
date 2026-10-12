@@ -91,12 +91,12 @@ typedef	void	(*pmap_align_superpage_t)(vm_object_t, vm_ooffset_t,
 		    vm_offset_t *, vm_size_t);
 
 typedef	void	(*pmap_sync_icache_t)(pmap_t, vm_offset_t, vm_size_t);
-typedef	void	(*pmap_dumpsys_map_chunk_t)(vm_paddr_t, size_t, void **);
-typedef	void	(*pmap_dumpsys_unmap_chunk_t)(vm_paddr_t, size_t, void *);
-typedef	void	(*pmap_dumpsys_pa_init_t)(void);
-typedef	size_t	(*pmap_dumpsys_scan_pmap_t)(struct bitset *dump_bitset);
-typedef	void	*(*pmap_dumpsys_dump_pmap_init_t)(unsigned);
-typedef	void	*(*pmap_dumpsys_dump_pmap_t)(void *, void *, u_long *);
+typedef	void	(*pmap_dump_full_map_chunk_t)(vm_paddr_t, size_t, void **);
+typedef	void	(*pmap_dump_full_unmap_chunk_t)(vm_paddr_t, size_t, void *);
+typedef	void	(*pmap_dump_full_pa_init_t)(void);
+typedef	size_t	(*pmap_dump_mini_scan_pmap_t)(struct bitset *dump_bitset);
+typedef	void	*(*pmap_dump_mini_pmap_init_t)(unsigned);
+typedef	void	*(*pmap_dump_mini_pmap_t)(void *, void *, u_long *);
 typedef	void	*(*pmap_quick_enter_page_t)(vm_page_t);
 typedef	void	(*pmap_quick_remove_page_t)(void *);
 typedef	bool	(*pmap_ps_enabled_t)(pmap_t);
@@ -163,12 +163,12 @@ struct pmap_funcs {
 	pmap_quick_enter_page_t	quick_enter_page;
 	pmap_quick_remove_page_t	quick_remove_page;
 	pmap_page_array_startup_t	page_array_startup;
-	pmap_dumpsys_map_chunk_t	dumpsys_map_chunk;
-	pmap_dumpsys_unmap_chunk_t	dumpsys_unmap_chunk;
-	pmap_dumpsys_pa_init_t	dumpsys_pa_init;
-	pmap_dumpsys_scan_pmap_t	dumpsys_scan_pmap;
-	pmap_dumpsys_dump_pmap_init_t	dumpsys_dump_pmap_init;
-	pmap_dumpsys_dump_pmap_t	dumpsys_dump_pmap;
+	pmap_dump_full_map_chunk_t	dump_full_map_chunk;
+	pmap_dump_full_unmap_chunk_t	dump_full_unmap_chunk;
+	pmap_dump_full_pa_init_t	dump_full_pa_init;
+	pmap_dump_mini_scan_pmap_t	dump_mini_scan_pmap;
+	pmap_dump_mini_pmap_init_t	dump_mini_pmap_init;
+	pmap_dump_mini_pmap_t	dump_mini_pmap;
 	pmap_tlbie_all_t	tlbie_all;
 
 };

@@ -423,10 +423,10 @@ static struct pmap_funcs mmu_booke_methods = {
 	.change_attr = mmu_booke_change_attr,
 	.decode_kernel_ptr =  mmu_booke_decode_kernel_ptr,
 
-	/* dumpsys() support */
-	.dumpsys_map_chunk = mmu_booke_dumpsys_map,
-	.dumpsys_unmap_chunk = mmu_booke_dumpsys_unmap,
-	.dumpsys_pa_init = mmu_booke_scan_init,
+	/* dump() support */
+	.dump_full_map_chunk = mmu_booke_dumpsys_map,
+	.dump_full_unmap_chunk = mmu_booke_dumpsys_unmap,
+	.dump_full_pa_init = mmu_booke_scan_init,
 };
 
 MMU_DEF(booke_mmu, MMU_TYPE_BOOKE, mmu_booke_methods);
@@ -2109,7 +2109,7 @@ mmu_booke_dumpsys_map(vm_paddr_t pa, size_t sz, void **va)
 	vm_size_t gran;
 
 	/* Minidumps are based on virtual memory addresses. */
-	if (do_minidump) {
+	if (dump_format == DUMP_MINI) {
 		*va = (void *)(vm_offset_t)pa;
 		return;
 	}
@@ -2138,7 +2138,7 @@ mmu_booke_dumpsys_unmap(vm_paddr_t pa, size_t sz, void *va)
 
 	/* Minidumps are based on virtual memory addresses. */
 	/* Nothing to do... */
-	if (do_minidump)
+	if (dump_format == DUMP_MINI)
 		return;
 
 	for (i = 0; i < TLB1_ENTRIES; i++) {
@@ -2175,8 +2175,8 @@ mmu_booke_scan_init(void)
 	pte_t *pte;
 	int i;
 
-	if (!do_minidump) {
-		/* Initialize phys. segments for dumpsys(). */
+	if (dump_format == DUMP_FULL) {
+		/* Initialize phys. segments for dump(). */
 		memset(&dump_map, 0, sizeof(dump_map));
 		mem_regions(&physmem_regions, &physmem_regions_sz, &availmem_regions,
 		    &availmem_regions_sz);

@@ -28,46 +28,36 @@
 #ifndef _MACHINE_DUMP_H_
 #define	_MACHINE_DUMP_H_
 
-#define	KERNELDUMP_ARCH_VERSION	KERNELDUMP_POWERPC_VERSION
+#define	DUMP_ARCH_VERSION	KERNELDUMP_POWERPC_VERSION
 #define	EM_VALUE		ELF_ARCH /* Defined in powerpc/include/elf.h */
-#define	DUMPSYS_MD_PA_NPAIRS	(PHYS_AVAIL_SZ + 1)
-#define	DUMPSYS_NUM_AUX_HDRS	0
+#define	DUMP_FULL_MD_PA_NPAIRS	(PHYS_AVAIL_SZ + 1)
+#define	DUMP_FULL_NUM_AUX_HDRS	0
 
 /* How often to check the dump progress bar? */
-#define	DUMPSYS_PB_CHECK_BITS	20	/* Every 1MB */
+#define	DUMP_PB_CHECK_BITS	20	/* Every 1MB */
 
-void dumpsys_pa_init(void);
-void dumpsys_unmap_chunk(vm_paddr_t, size_t, void *);
-size_t dumpsys_scan_pmap(struct bitset *);
-void *dumpsys_dump_pmap_init(unsigned blkpgs);
-void *dumpsys_dump_pmap(void *ctx, void *buf, u_long *nbytes);
+void dump_full_pa_init(void);
+void dump_full_unmap_chunk(vm_paddr_t, size_t, void *);
+size_t dump_mini_scan_pmap(struct bitset *);
+void *dump_mini_pmap_init(unsigned blkpgs);
+void *dump_mini_pmap(void *ctx, void *buf, u_long *nbytes);
 
 static inline struct dump_pa *
-dumpsys_pa_next(struct dump_pa *p)
+dump_full_pa_next(struct dump_pa *p)
 {
-
-	return (dumpsys_gen_pa_next(p));
+	return (dump_full_gen_pa_next(p));
 }
 
 static inline void
-dumpsys_wbinv_all(void)
+dump_full_wbinv_all(void)
 {
-
-	dumpsys_gen_wbinv_all();
+	dump_full_gen_wbinv_all();
 }
 
 static inline int
-dumpsys_write_aux_headers(struct dumperinfo *di)
+dump_full_write_aux_headers(struct dumperinfo *di)
 {
-
-	return (dumpsys_gen_write_aux_headers(di));
-}
-
-static inline int
-dumpsys(struct dumperinfo *di)
-{
-
-	return (dumpsys_generic(di));
+	return (dump_full_gen_write_aux_headers(di));
 }
 
 #endif  /* !_MACHINE_DUMP_H_ */
