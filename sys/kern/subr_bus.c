@@ -410,6 +410,15 @@ device_sysctl_fini(device_t dev)
 static struct device_list bus_data_devices;
 static int bus_data_generation = 1;
 
+/* Active child snapshots, protected by the bus topology lock. */
+struct bus_child_walk {
+	LIST_ENTRY(bus_child_walk) link;
+	device_t *children;
+	int count;
+};
+static LIST_HEAD(, bus_child_walk) bus_child_walks =
+    LIST_HEAD_INITIALIZER(bus_child_walks);
+
 static kobj_method_t null_methods[] = {
 	KOBJMETHOD_END
 };
@@ -1538,7 +1547,8 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 int
 device_delete_child(device_t dev, device_t child)
 {
-	int error;
+	struct bus_child_walk *walk;
+	int error, i;
 	device_t grandchild;
 
 	PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
@@ -1564,6 +1574,13 @@ device_delete_child(device_t dev, device_t child)
 		BUS_CHILD_DELETED(dev, child);
 	TAILQ_REMOVE(&dev->children, child, link);
 	TAILQ_REMOVE(&bus_data_devices, child, devlink);
+
+	/* Invalidate pending entries before the device address can be reused. */
+	LIST_FOREACH(walk, &bus_child_walks, link) {
+		for (i = 0; i < walk->count; i++)
+			if (walk->children[i] == child)
+				walk->children[i] = NULL;
+	}
 	kobj_delete((kobj_t) child, M_BUS);
 
 	bus_data_generation_update();
@@ -3481,6 +3498,49 @@ int
 bus_generic_attach(device_t dev)
 {
 	bus_attach_children(dev);
+	return (0);
+}
+
+/**
+ * @brief Invoke a callback on each surviving child in a snapshot
+ *
+ * The caller must hold the bus topology lock.  Children deleted by a
+ * callback are removed from all active snapshots before they are freed,
+ * including snapshots belonging to an outer, nested walk.  Children added
+ * during the walk are not visited.  The callback must not delete the parent
+ * or use a child after deleting it.  This does not provide device references
+ * or protection against concurrent topology changes while the lock is dropped.
+ *
+ * As with device_get_children(), allocation failure leaves the children
+ * unvisited.
+ *
+ * @param dev           the parent device
+ * @param action        callback to invoke on each surviving child
+ * @param arg           argument passed through to @p action
+ * @retval 0            success
+ * @retval ENOMEM       snapshot allocation failed
+ */
+int
+bus_foreach_child_safe(device_t dev, bus_child_action_t action, void *arg)
+{
+	struct bus_child_walk walk;
+	device_t child;
+	int error, i;
+
+	bus_topo_assert();
+	error = device_get_children(dev, &walk.children, &walk.count);
+	if (error != 0)
+		return (error);
+
+	LIST_INSERT_HEAD(&bus_child_walks, &walk, link);
+	for (i = 0; i < walk.count; i++) {
+		child = walk.children[i];
+		walk.children[i] = NULL;
+		if (child != NULL && device_get_parent(child) == dev)
+			action(child, arg);
+	}
+	LIST_REMOVE(&walk, link);
+	free(walk.children, M_TEMP);
 	return (0);
 }
 
