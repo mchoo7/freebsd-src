@@ -136,13 +136,20 @@ set_regs(struct thread *td, struct reg *regs)
 		 */
 		frame->tf_spsr &= ~PSR_SETTABLE_64;
 		frame->tf_spsr |= regs->spsr & PSR_SETTABLE_64;
-		/* Enable single stepping if userspace asked fot it */
+		/* Enable single stepping if userspace asked for it */
 		if ((frame->tf_spsr & PSR_SS) != 0) {
 			td->td_pcb->pcb_flags |= PCB_SINGLE_STEP;
 
-			WRITE_SPECIALREG(mdscr_el1,
-			    READ_SPECIALREG(mdscr_el1) | MDSCR_SS);
-			isb();
+			/*
+			 * A stopped thread's CPU state is updated when it is
+			 * scheduled.  Do not enable stepping on the debugger's
+			 * CPU when setting another thread's registers.
+			 */
+			if (td == curthread) {
+				WRITE_SPECIALREG(mdscr_el1,
+				    READ_SPECIALREG(mdscr_el1) | MDSCR_SS);
+				isb();
+			}
 		}
 	}
 	return (0);
@@ -554,9 +561,12 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	if ((tf->tf_spsr & PSR_SS) != 0) {
 		td->td_pcb->pcb_flags |= PCB_SINGLE_STEP;
 
-		WRITE_SPECIALREG(mdscr_el1,
-		    READ_SPECIALREG(mdscr_el1) | MDSCR_SS);
-		isb();
+		/* thr_create() can set the context of a new thread. */
+		if (td == curthread) {
+			WRITE_SPECIALREG(mdscr_el1,
+			    READ_SPECIALREG(mdscr_el1) | MDSCR_SS);
+			isb();
+		}
 	}
 
 	set_fpcontext(td, mcp);
