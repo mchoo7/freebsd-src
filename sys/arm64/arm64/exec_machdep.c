@@ -216,8 +216,8 @@ fill_dbregs(struct thread *td, struct dbreg *regs)
 	 */
 	if (!get_user_reg(ID_AA64DFR0_EL1, &dfr0, true)) {
 		debug_ver = ID_AA64DFR0_DebugVer_8;
-		nbkpts = 0;
-		nwtpts = 0;
+		nbkpts = 1;
+		nwtpts = 1;
 	} else {
 		debug_ver = ID_AA64DFR0_DebugVer_VAL(dfr0) >>
 		    ID_AA64DFR0_DebugVer_SHIFT;
@@ -225,13 +225,7 @@ fill_dbregs(struct thread *td, struct dbreg *regs)
 		nwtpts = ID_AA64DFR0_WRPs_NUM(dfr0);
 	}
 
-	/*
-	 * The BRPs field contains the number of breakpoints - 1. Armv8-A
-	 * allows the hardware to provide 2-16 breakpoints so this won't
-	 * overflow an 8 bit value. The same applies to the WRPs field.
-	 */
-	nbkpts++;
-	nwtpts++;
+	/* The *_NUM macros already return the number of available registers. */
 
 	regs->db_debug_ver = debug_ver;
 	regs->db_nbkpts = nbkpts;
