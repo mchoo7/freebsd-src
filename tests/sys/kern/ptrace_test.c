@@ -4023,6 +4023,7 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 {
 	struct ptrace_lwpinfo pl;
 	struct ptrace_sc_ret psr;
+	struct reg regs;
 	pid_t fpid, wpid;
 	register_t args[2];
 	int events, status;
@@ -4060,6 +4061,10 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCE);
 	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_getpid);
 
+	/* Entry-time register writes must not suppress the syscall return value. */
+	ATF_REQUIRE(ptrace(PT_GETREGS, wpid, (caddr_t)&regs, 0) != -1);
+	ATF_REQUIRE(ptrace(PT_SETREGS, wpid, (caddr_t)&regs, 0) != -1);
+
 	REQUIRE_EQ(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0), 0);
 
 	/*
@@ -4078,6 +4083,15 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 	    sizeof(psr)) != -1);
 	REQUIRE_EQ(psr.sr_error, 0);
 	REQUIRE_EQ(psr.sr_retval[0], wpid);
+
+#if defined(__amd64__) || defined(__aarch64__)
+	ATF_REQUIRE(ptrace(PT_GETREGS, wpid, (caddr_t)&regs, 0) != -1);
+#if defined(__amd64__)
+	REQUIRE_EQ(regs.r_rax, wpid);
+#else
+	REQUIRE_EQ(regs.x[0], wpid);
+#endif
+#endif
 
 	REQUIRE_EQ(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0), 0);
 
@@ -4791,6 +4805,122 @@ ATF_TC_BODY(ptrace__PT_ATTACH_no_EINTR, tc)
 	ATF_REQUIRE(timespeccmp(&shm->sleep_time, &twelve_sec, <=));
 }
 
+#if defined(__amd64__) || defined(__aarch64__)
+static void __attribute__((naked))
+register_write_trap(void)
+{
+#if defined(__amd64__)
+	__asm __volatile("int3");
+#else
+	__asm __volatile("brk #0");
+#endif
+}
+
+static void
+setregs_during_syscall(bool regset)
+{
+	struct prstatus prs;
+	struct kinfo_proc kp;
+	struct timespec start, now;
+	struct iovec vec;
+	struct reg regs;
+	const register_t first = 0x13579bdf2468ace0;
+	const register_t second = 0x2468ace013579bdf;
+	size_t len;
+	pid_t child;
+	int mib[4], status, pipefd[2];
+	char byte;
+
+	ATF_REQUIRE_SYSCTL_INT("debug.ptrace_attach_transparent", 1);
+	REQUIRE_EQ(pipe(pipefd), 0);
+	ATF_REQUIRE((child = fork()) != -1);
+	if (child == 0) {
+		close(pipefd[1]);
+		read(pipefd[0], &byte, 1);
+		_exit(1);
+	}
+	REQUIRE_EQ(close(pipefd[0]), 0);
+
+	/* Observe the actual sleep instead of guessing when the child ran. */
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+	mib[3] = child;
+	REQUIRE_EQ(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	for (;;) {
+		len = sizeof(kp);
+		REQUIRE_EQ(sysctl(mib, nitems(mib), &kp, &len, NULL, 0), 0);
+		REQUIRE_EQ(len, sizeof(kp));
+		if (kp.ki_stat == SSLEEP && strcmp(kp.ki_wmesg, "piperd") == 0)
+			break;
+		REQUIRE_EQ(clock_gettime(CLOCK_MONOTONIC, &now), 0);
+		ATF_REQUIRE_MSG(now.tv_sec - start.tv_sec < 10,
+		    "child did not enter the blocking pipe read");
+		usleep(1000);
+	}
+
+	attach_child(child);
+	ATF_REQUIRE(ptrace(PT_GETREGS, child, (caddr_t)&regs, 0) != -1);
+#if defined(__amd64__)
+	regs.r_rax = first;
+	regs.r_rdx = second;
+	regs.r_rip = (uintptr_t)register_write_trap;
+#else
+	regs.x[0] = first;
+	regs.x[1] = second;
+	regs.elr = (uintptr_t)register_write_trap;
+#endif
+	if (regset) {
+		vec.iov_base = &prs;
+		vec.iov_len = sizeof(prs);
+		ATF_REQUIRE(ptrace(PT_GETREGSET, child, (caddr_t)&vec,
+		    NT_PRSTATUS) != -1);
+		prs.pr_reg = regs;
+		ATF_REQUIRE(ptrace(PT_SETREGSET, child, (caddr_t)&vec,
+		    NT_PRSTATUS) != -1);
+	} else {
+		ATF_REQUIRE(ptrace(PT_SETREGS, child, (caddr_t)&regs, 0) != -1);
+	}
+	REQUIRE_EQ(ptrace(PT_CONTINUE, child, (caddr_t)1, 0), 0);
+	REQUIRE_EQ(waitpid(child, &status, 0), child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGTRAP);
+	ATF_REQUIRE(ptrace(PT_GETREGS, child, (caddr_t)&regs, 0) != -1);
+#if defined(__amd64__)
+	ATF_CHECK_EQ(regs.r_rax, first);
+	ATF_CHECK_EQ(regs.r_rdx, second);
+#else
+	ATF_CHECK_EQ(regs.x[0], first);
+	ATF_CHECK_EQ(regs.x[1], second);
+#endif
+	REQUIRE_EQ(ptrace(PT_KILL, child, NULL, 0), 0);
+	REQUIRE_EQ(waitpid(child, &status, 0), child);
+	ATF_REQUIRE(WIFSIGNALED(status));
+	REQUIRE_EQ(WTERMSIG(status), SIGKILL);
+	REQUIRE_EQ(close(pipefd[1]), 0);
+}
+#endif
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SETREGS_during_syscall);
+ATF_TC_BODY(ptrace__PT_SETREGS_during_syscall, tc)
+{
+#if defined(__amd64__) || defined(__aarch64__)
+	setregs_during_syscall(false);
+#else
+	atf_tc_skip("register trap fixture requires amd64 or arm64");
+#endif
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SETREGSET_during_syscall);
+ATF_TC_BODY(ptrace__PT_SETREGSET_during_syscall, tc)
+{
+#if defined(__amd64__) || defined(__aarch64__)
+	setregs_during_syscall(true);
+#else
+	atf_tc_skip("register trap fixture requires amd64 or arm64");
+#endif
+}
+
 ATF_TC_WITHOUT_HEAD(ptrace__PT_DETACH_continued);
 ATF_TC_BODY(ptrace__PT_DETACH_continued, tc)
 {
@@ -4932,6 +5062,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_execve);
 	ATF_TP_ADD_TC(tp, ptrace__reap_kill_stopped);
 	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_no_EINTR);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SETREGS_during_syscall);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SETREGSET_during_syscall);
 	ATF_TP_ADD_TC(tp, ptrace__PT_DETACH_continued);
 
 	return (atf_no_error());

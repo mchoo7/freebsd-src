@@ -33,6 +33,7 @@
 
 #include <sys/systm.h>
 #include <sys/capsicum.h>
+#include <sys/elf.h>
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
 #include <sys/ktr.h>
@@ -1528,7 +1529,7 @@ ptrace_action(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 				    (u_long)(uintfptr_t)addr);
 				if (error != 0)
 					goto out;
-				td2->td_dbgflags |= TDB_USERWR;
+				td2->td_dbgflags |= TDB_USERWR | TDB_USERREGS;
 			}
 			switch (req) {
 			case PT_TO_SCE:
@@ -1756,6 +1757,8 @@ ptrace_action(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 		    p->p_pid);
 		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(regs, td2, addr);
+		if (error == 0)
+			td2->td_dbgflags |= TDB_USERREGS;
 		break;
 
 	case PT_GETREGS:
@@ -1794,6 +1797,8 @@ ptrace_action(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 		CTR2(KTR_PTRACE, "PT_SETREGSET: tid %d (pid %d)", td2->td_tid,
 		    p->p_pid);
 		error = proc_write_regset(td2, data, addr);
+		if (error == 0 && data == NT_PRSTATUS)
+			td2->td_dbgflags |= TDB_USERWR | TDB_USERREGS;
 		break;
 
 	case PT_GETREGSET:

@@ -56,7 +56,7 @@ syscallenter(struct thread *td)
 	struct syscall_args *sa;
 	struct sysent *se;
 	int error;
-	bool sy_thr_static, traced;
+	bool preserve_regs, sy_thr_static, traced;
 
 	VM_CNT_INC(v_syscall);
 	p = td->td_proc;
@@ -67,10 +67,10 @@ syscallenter(struct thread *td)
 		thread_cow_update(td);
 	traced = (p->p_flag & P_TRACED) != 0;
 	if (__predict_false(traced || (td->td_dbgflags & (TDB_USERWR |
-	    TDB_SET_SC_RET)) != 0)) {
+	    TDB_SET_SC_RET | TDB_USERREGS)) != 0)) {
 		PROC_LOCK(p);
 		MPASS((td->td_dbgflags & TDB_BOUNDARY) == 0);
-		td->td_dbgflags &= ~(TDB_USERWR | TDB_SET_SC_RET);
+		td->td_dbgflags &= ~(TDB_USERWR | TDB_SET_SC_RET | TDB_USERREGS);
 		if (traced)
 			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
@@ -96,6 +96,10 @@ syscallenter(struct thread *td)
 		PROC_LOCK(p);
 		if (p->p_ptevents & PTRACE_SCE)
 			ptracestop((td), SIGTRAP, NULL);
+		/*
+		 * Entry-time register edits supply syscall arguments, not results.
+		 */
+		td->td_dbgflags &= ~TDB_USERREGS;
 		PROC_UNLOCK(p);
 
 		if ((td->td_dbgflags & TDB_SET_SC_RET) != 0) {
@@ -203,12 +207,19 @@ syscallenter(struct thread *td)
 	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "error:%d", error,
 	    "retval0:%#lx", td->td_retval[0], "retval1:%#lx",
 	    td->td_retval[1]);
-	if (__predict_false(traced)) {
+	preserve_regs = false;
+	if (__predict_false(traced || (td->td_dbgflags & TDB_USERREGS) != 0)) {
 		PROC_LOCK(p);
-		td->td_dbgflags &= ~(TDB_SCE | TDB_BOUNDARY | TDB_SET_SC_RET);
+		preserve_regs = (td->td_dbgflags & TDB_USERREGS) != 0;
+		td->td_dbgflags &= ~(TDB_SCE | TDB_BOUNDARY | TDB_SET_SC_RET |
+		    TDB_USERREGS);
 		PROC_UNLOCK(p);
 	}
-	(p->p_sysent->sv_set_syscall_retval)(td, error);
+	/*
+	 * A pending syscall must not overwrite a debugger-installed register file.
+	 */
+	(p->p_sysent->sv_set_syscall_retval)(td,
+	    preserve_regs ? EJUSTRETURN : error);
 	if (error != 0 && (td->td_pflags2 & TDP2_UEXTERR) != 0)
 		exterr_copyout(td);
 }
