@@ -1649,22 +1649,26 @@ ptrace_action(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 			proc_wkilled(p);
 
 		/*
-		 * If the PT_CONTINUE-like operation is attempted on
-		 * the thread on sleepq, this is possible only after
-		 * the transparent PT_ATTACH.  In this case, if the
-		 * caller modified the thread state, e.g. by writing
-		 * register file or specifying the pc, make the thread
-		 * xstopped by waking it up.
+		 * An all-stop can leave LWPs suspended on sleep queues.  A
+		 * process-wide continue need not select the LWP whose state
+		 * the debugger modified.  Wake all modified interruptible
+		 * sleepers that are being resumed so they can reach xstop
+		 * and return to user mode with the new state.  Leave LWPs
+		 * explicitly suspended by the debugger alone until resumed.
 		 */
-		if ((td2->td_dbgflags & TDB_USERWR) != 0 &&
-		    pt_attach_transparent) {
-			thread_lock(td2);
-			if (TD_ON_SLEEPQ(td2) &&
-			    (td2->td_flags & TDF_SINTR) != 0) {
-				td2->td_dbgflags &= ~TDB_USERWR;
-				sleepq_abort(td2, EINTR);
-			} else {
-				thread_unlock(td2);
+		if (pt_attach_transparent) {
+			FOREACH_THREAD_IN_PROC(p, td3) {
+				if ((td3->td_dbgflags & (TDB_USERWR |
+				    TDB_SUSPEND)) != TDB_USERWR)
+					continue;
+				thread_lock(td3);
+				if (TD_ON_SLEEPQ(td3) &&
+				    (td3->td_flags & TDF_SINTR) != 0) {
+					td3->td_dbgflags &= ~TDB_USERWR;
+					sleepq_abort(td3, EINTR);
+				} else {
+					thread_unlock(td3);
+				}
 			}
 		}
 
