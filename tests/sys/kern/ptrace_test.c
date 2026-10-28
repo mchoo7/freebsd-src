@@ -50,6 +50,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ucontext.h>
 #include <unistd.h>
 #include <atf-c.h>
 
@@ -4023,6 +4024,7 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 {
 	struct ptrace_lwpinfo pl;
 	struct ptrace_sc_ret psr;
+	struct reg regs;
 	pid_t fpid, wpid;
 	register_t args[2];
 	int events, status;
@@ -4060,6 +4062,10 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCE);
 	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_getpid);
 
+	/* Entry-time register writes must not suppress the syscall return value. */
+	ATF_REQUIRE(ptrace(PT_GETREGS, wpid, (caddr_t)&regs, 0) != -1);
+	ATF_REQUIRE(ptrace(PT_SETREGS, wpid, (caddr_t)&regs, 0) != -1);
+
 	REQUIRE_EQ(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0), 0);
 
 	/*
@@ -4078,6 +4084,15 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 	    sizeof(psr)) != -1);
 	REQUIRE_EQ(psr.sr_error, 0);
 	REQUIRE_EQ(psr.sr_retval[0], wpid);
+
+#if defined(__amd64__) || defined(__aarch64__)
+	ATF_REQUIRE(ptrace(PT_GETREGS, wpid, (caddr_t)&regs, 0) != -1);
+#if defined(__amd64__)
+	REQUIRE_EQ(regs.r_rax, wpid);
+#else
+	REQUIRE_EQ(regs.x[0], wpid);
+#endif
+#endif
 
 	REQUIRE_EQ(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0), 0);
 
@@ -4858,6 +4873,247 @@ ATF_TC_BODY(ptrace__PT_ATTACH_no_EINTR, tc)
 	ATF_REQUIRE(timespeccmp(&shm->sleep_time, &twelve_sec, <=));
 }
 
+#if defined(__amd64__) || defined(__aarch64__)
+static const register_t register_write_first = 0x13579bdf2468ace0;
+static const register_t register_write_second = 0x2468ace013579bdf;
+
+static void __attribute__((naked))
+register_write_trap(void)
+{
+#if defined(__amd64__)
+	__asm __volatile("int3");
+#else
+	__asm __volatile("brk #0");
+#endif
+}
+
+static void
+write_test_registers(pid_t child, bool regset)
+{
+	struct prstatus prs;
+	struct iovec vec;
+	struct reg regs;
+
+	ATF_REQUIRE(ptrace(PT_GETREGS, child, (caddr_t)&regs, 0) != -1);
+#if defined(__amd64__)
+	regs.r_rax = register_write_first;
+	regs.r_rdx = register_write_second;
+	regs.r_rip = (uintptr_t)register_write_trap;
+#else
+	regs.x[0] = register_write_first;
+	regs.x[1] = register_write_second;
+	regs.elr = (uintptr_t)register_write_trap;
+#endif
+	if (regset) {
+		vec.iov_base = &prs;
+		vec.iov_len = sizeof(prs);
+		ATF_REQUIRE(ptrace(PT_GETREGSET, child, (caddr_t)&vec,
+		    NT_PRSTATUS) != -1);
+		prs.pr_reg = regs;
+		ATF_REQUIRE(ptrace(PT_SETREGSET, child, (caddr_t)&vec,
+		    NT_PRSTATUS) != -1);
+	} else {
+		ATF_REQUIRE(ptrace(PT_SETREGS, child, (caddr_t)&regs, 0) != -1);
+	}
+}
+
+static void
+register_write_handler(int signo, siginfo_t *info __unused, void *context)
+{
+	const ucontext_t *uc;
+	bool matches;
+
+	uc = context;
+	/* Check the interrupted context, not the handler's argument registers. */
+#if defined(__amd64__)
+	matches = uc->uc_mcontext.mc_rax == register_write_first &&
+	    uc->uc_mcontext.mc_rdx == register_write_second;
+	if (signo == SIGUSR1)
+		matches = matches && (uintptr_t)uc->uc_mcontext.mc_rip ==
+		    (uintptr_t)register_write_trap;
+#else
+	matches = uc->uc_mcontext.mc_gpregs.gp_x[0] == register_write_first &&
+	    uc->uc_mcontext.mc_gpregs.gp_x[1] == register_write_second;
+	if (signo == SIGUSR1)
+		matches = matches && (uintptr_t)uc->uc_mcontext.mc_gpregs.gp_elr ==
+		    (uintptr_t)register_write_trap;
+#endif
+	_exit(matches ? 0 : 1);
+}
+
+static void
+install_register_write_handler(int signo)
+{
+	struct sigaction sa;
+
+	sa = (struct sigaction){
+		.sa_sigaction = register_write_handler,
+		.sa_flags = SA_SIGINFO,
+	};
+	sigemptyset(&sa.sa_mask);
+	CHILD_REQUIRE_EQ(sigaction(signo, &sa, NULL), 0);
+}
+
+static void
+setregs_during_syscall(bool regset, bool detach)
+{
+	struct kinfo_proc kp;
+	struct timespec start, now;
+	struct reg regs;
+	size_t len;
+	pid_t child;
+	int mib[4], status, pipefd[2];
+	char byte;
+
+	ATF_REQUIRE_SYSCTL_INT("debug.ptrace_attach_transparent", 1);
+	REQUIRE_EQ(pipe(pipefd), 0);
+	ATF_REQUIRE((child = fork()) != -1);
+	if (child == 0) {
+		if (detach)
+			install_register_write_handler(SIGTRAP);
+		close(pipefd[1]);
+		read(pipefd[0], &byte, 1);
+		_exit(1);
+	}
+	REQUIRE_EQ(close(pipefd[0]), 0);
+
+	/* Observe the actual sleep instead of guessing when the child ran. */
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+	mib[3] = child;
+	REQUIRE_EQ(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	for (;;) {
+		len = sizeof(kp);
+		REQUIRE_EQ(sysctl(mib, nitems(mib), &kp, &len, NULL, 0), 0);
+		REQUIRE_EQ(len, sizeof(kp));
+		if (kp.ki_stat == SSLEEP && strcmp(kp.ki_wmesg, "piperd") == 0)
+			break;
+		REQUIRE_EQ(clock_gettime(CLOCK_MONOTONIC, &now), 0);
+		ATF_REQUIRE_MSG(now.tv_sec - start.tv_sec < 10,
+		    "child did not enter the blocking pipe read");
+		usleep(1000);
+	}
+
+	attach_child(child);
+	write_test_registers(child, regset);
+	if (detach) {
+		/* The pending return must preserve registers after P_TRACED clears. */
+		REQUIRE_EQ(ptrace(PT_DETACH, child, (caddr_t)1, 0), 0);
+		REQUIRE_EQ(waitpid(child, &status, 0), child);
+		ATF_REQUIRE(WIFEXITED(status));
+		REQUIRE_EQ(WEXITSTATUS(status), 0);
+	} else {
+		REQUIRE_EQ(ptrace(PT_CONTINUE, child, (caddr_t)1, 0), 0);
+		REQUIRE_EQ(waitpid(child, &status, 0), child);
+		ATF_REQUIRE(WIFSTOPPED(status));
+		REQUIRE_EQ(WSTOPSIG(status), SIGTRAP);
+		ATF_REQUIRE(ptrace(PT_GETREGS, child, (caddr_t)&regs, 0) != -1);
+#if defined(__amd64__)
+		ATF_CHECK_EQ(regs.r_rax, register_write_first);
+		ATF_CHECK_EQ(regs.r_rdx, register_write_second);
+#else
+		ATF_CHECK_EQ(regs.x[0], register_write_first);
+		ATF_CHECK_EQ(regs.x[1], register_write_second);
+#endif
+		REQUIRE_EQ(ptrace(PT_KILL, child, NULL, 0), 0);
+		REQUIRE_EQ(waitpid(child, &status, 0), child);
+		ATF_REQUIRE(WIFSIGNALED(status));
+		REQUIRE_EQ(WTERMSIG(status), SIGKILL);
+	}
+	REQUIRE_EQ(close(pipefd[1]), 0);
+}
+
+static void
+setregs_during_signal(bool regset)
+{
+	pid_t child;
+	int status;
+
+	ATF_REQUIRE((child = fork()) != -1);
+	if (child == 0) {
+		install_register_write_handler(SIGUSR1);
+		trace_me();
+		raise(SIGUSR1);
+		_exit(1);
+	}
+	REQUIRE_EQ(waitpid(child, &status, 0), child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+	REQUIRE_EQ(ptrace(PT_CONTINUE, child, (caddr_t)1, 0), 0);
+	REQUIRE_EQ(waitpid(child, &status, 0), child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGUSR1);
+
+	/* Let the caught signal reach its handler with the modified context. */
+	write_test_registers(child, regset);
+	REQUIRE_EQ(ptrace(PT_CONTINUE, child, (caddr_t)1, SIGUSR1), 0);
+	REQUIRE_EQ(waitpid(child, &status, 0), child);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 0);
+}
+#endif
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SETREGS_during_syscall);
+ATF_TC_BODY(ptrace__PT_SETREGS_during_syscall, tc)
+{
+#if defined(__amd64__) || defined(__aarch64__)
+	setregs_during_syscall(false, false);
+#else
+	atf_tc_skip("register trap fixture requires amd64 or arm64");
+#endif
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SETREGSET_during_syscall);
+ATF_TC_BODY(ptrace__PT_SETREGSET_during_syscall, tc)
+{
+#if defined(__amd64__) || defined(__aarch64__)
+	setregs_during_syscall(true, false);
+#else
+	atf_tc_skip("register trap fixture requires amd64 or arm64");
+#endif
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SETREGS_during_syscall_detach);
+ATF_TC_BODY(ptrace__PT_SETREGS_during_syscall_detach, tc)
+{
+#if defined(__amd64__) || defined(__aarch64__)
+	setregs_during_syscall(false, true);
+#else
+	atf_tc_skip("register trap fixture requires amd64 or arm64");
+#endif
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SETREGSET_during_syscall_detach);
+ATF_TC_BODY(ptrace__PT_SETREGSET_during_syscall_detach, tc)
+{
+#if defined(__amd64__) || defined(__aarch64__)
+	setregs_during_syscall(true, true);
+#else
+	atf_tc_skip("register trap fixture requires amd64 or arm64");
+#endif
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SETREGS_during_signal);
+ATF_TC_BODY(ptrace__PT_SETREGS_during_signal, tc)
+{
+#if defined(__amd64__) || defined(__aarch64__)
+	setregs_during_signal(false);
+#else
+	atf_tc_skip("register trap fixture requires amd64 or arm64");
+#endif
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_SETREGSET_during_signal);
+ATF_TC_BODY(ptrace__PT_SETREGSET_during_signal, tc)
+{
+#if defined(__amd64__) || defined(__aarch64__)
+	setregs_during_signal(true);
+#else
+	atf_tc_skip("register trap fixture requires amd64 or arm64");
+#endif
+}
+
 ATF_TC_WITHOUT_HEAD(ptrace__PT_DETACH_continued);
 ATF_TC_BODY(ptrace__PT_DETACH_continued, tc)
 {
@@ -5000,6 +5256,12 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__reap_kill_stopped);
 	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_syscall_flags);
 	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_no_EINTR);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SETREGS_during_syscall);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SETREGSET_during_syscall);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SETREGS_during_syscall_detach);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SETREGSET_during_syscall_detach);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SETREGS_during_signal);
+	ATF_TP_ADD_TC(tp, ptrace__PT_SETREGSET_during_signal);
 	ATF_TP_ADD_TC(tp, ptrace__PT_DETACH_continued);
 
 	return (atf_no_error());

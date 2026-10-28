@@ -532,6 +532,7 @@ enum {
 #define	TDB_COREDUMPREQ	0x00010000 /* Coredump request */
 #define	TDB_SCREMOTEREQ	0x00020000 /* Remote syscall request */
 #define	TDB_SET_SC_RET	0x00040000 /* PT_SET_SC_RET applied */
+#define	TDB_USERREGS	0x00080000 /* Debugger installed general registers */
 
 /*
  * "Private" flags kept in td_pflags:
