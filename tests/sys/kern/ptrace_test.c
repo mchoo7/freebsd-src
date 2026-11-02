@@ -4746,6 +4746,73 @@ static const struct timespec twelve_sec = {
 	.tv_nsec = 0,
 };
 
+/* A new tracing session must not inherit syscall flags left after detach. */
+ATF_TC_WITHOUT_HEAD(ptrace__PT_ATTACH_syscall_flags);
+ATF_TC_BODY(ptrace__PT_ATTACH_syscall_flags, tc)
+{
+	struct kinfo_proc kp;
+	struct ptrace_lwpinfo pl;
+	struct timespec start, now;
+	size_t len;
+	pid_t child;
+	int mib[4], status, pipefd[2];
+	char byte;
+
+	ATF_REQUIRE_SYSCTL_INT("debug.ptrace_attach_transparent", 1);
+	REQUIRE_EQ(pipe(pipefd), 0);
+	ATF_REQUIRE((child = fork()) != -1);
+	if (child == 0) {
+		close(pipefd[1]);
+		trace_me();
+		(void)getpid();
+		CHILD_REQUIRE_EQ(read(pipefd[0], &byte, 1), 1);
+		_exit(0);
+	}
+	REQUIRE_EQ(close(pipefd[0]), 0);
+	REQUIRE_EQ(waitpid(child, &status, 0), child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	/* Detach at getpid entry so its TDB_SCE survives the untraced return. */
+	REQUIRE_EQ(ptrace(PT_TO_SCE, child, (caddr_t)1, 0), 0);
+	REQUIRE_EQ(waitpid(child, &status, 0), child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGTRAP);
+	REQUIRE_EQ(ptrace(PT_LWPINFO, child, (caddr_t)&pl, sizeof(pl)), 0);
+	ATF_REQUIRE((pl.pl_flags & PL_FLAG_SCE) != 0);
+	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_getpid);
+	REQUIRE_EQ(ptrace(PT_DETACH, child, (caddr_t)1, 0), 0);
+
+	/* Reattach while the child is inside a different, untraced syscall. */
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+	mib[3] = child;
+	REQUIRE_EQ(clock_gettime(CLOCK_MONOTONIC, &start), 0);
+	for (;;) {
+		len = sizeof(kp);
+		REQUIRE_EQ(sysctl(mib, nitems(mib), &kp, &len, NULL, 0), 0);
+		REQUIRE_EQ(len, sizeof(kp));
+		if (kp.ki_stat == SSLEEP && strcmp(kp.ki_wmesg, "piperd") == 0)
+			break;
+		REQUIRE_EQ(clock_gettime(CLOCK_MONOTONIC, &now), 0);
+		ATF_REQUIRE_MSG(now.tv_sec - start.tv_sec < 10,
+		    "child did not enter the blocking pipe read");
+		usleep(1000);
+	}
+	attach_child(child);
+	REQUIRE_EQ(ptrace(PT_LWPINFO, child, (caddr_t)&pl, sizeof(pl)), 0);
+	REQUIRE_EQ(pl.pl_flags & (PL_FLAG_SCE | PL_FLAG_SCX), 0);
+
+	byte = 0;
+	REQUIRE_EQ(write(pipefd[1], &byte, 1), 1);
+	REQUIRE_EQ(close(pipefd[1]), 0);
+	REQUIRE_EQ(ptrace(PT_CONTINUE, child, (caddr_t)1, 0), 0);
+	REQUIRE_EQ(waitpid(child, &status, 0), child);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 0);
+}
+
 ATF_TC_WITHOUT_HEAD(ptrace__PT_ATTACH_no_EINTR);
 ATF_TC_BODY(ptrace__PT_ATTACH_no_EINTR, tc)
 {
@@ -4931,6 +4998,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_exit_sigkill);
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_execve);
 	ATF_TP_ADD_TC(tp, ptrace__reap_kill_stopped);
+	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_syscall_flags);
 	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_no_EINTR);
 	ATF_TP_ADD_TC(tp, ptrace__PT_DETACH_continued);
 

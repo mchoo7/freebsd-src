@@ -203,6 +203,8 @@ syscallenter(struct thread *td)
 	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "error:%d", error,
 	    "retval0:%#lx", td->td_retval[0], "retval1:%#lx",
 	    td->td_retval[1]);
+	/* A debugger may have attached or detached during syscall execution. */
+	traced = (p->p_flag & P_TRACED) != 0;
 	if (__predict_false(traced)) {
 		PROC_LOCK(p);
 		td->td_dbgflags &= ~(TDB_SCE | TDB_BOUNDARY | TDB_SET_SC_RET);

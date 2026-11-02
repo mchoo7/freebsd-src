@@ -944,9 +944,15 @@ ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 void
 proc_set_traced(struct proc *p, bool stop)
 {
+	struct thread *td;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	/* Do not inherit syscall bookkeeping from a previous tracing session. */
+	FOREACH_THREAD_IN_PROC(p, td) {
+		td->td_dbgflags &= ~(TDB_SCE | TDB_SCX | TDB_BOUNDARY |
+		    TDB_SET_SC_RET);
+	}
 	p->p_flag |= P_TRACED;
 	if (stop)
 		p->p_flag2 |= P2_PTRACE_FSTP;
