@@ -3398,6 +3398,10 @@ mmu_radix_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	    ("mmu_radix_enter_quick_locked: managed mapping within the clean submap"));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
+	/* Prefaulting must not grant read access to a write-only mapping. */
+	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0)
+		return (NULL);
+
 	/*
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
@@ -3483,7 +3487,7 @@ mmu_radix_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.mdpg_cache_attrs);
 	if (prot & VM_PROT_EXECUTE)
 		pa |= PG_X;
-	else
+	if (prot & VM_PROT_READ)
 		pa |= RPTE_EAA_R;
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		pa |= PG_MANAGED;
