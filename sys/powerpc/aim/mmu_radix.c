@@ -954,7 +954,6 @@ pmap_nofault_pte(pmap_t pmap, vm_offset_t va, int *is_l3e)
 	pml3_entry_t *l3e;
 	pt_entry_t *pte;
 
-	va &= PG_PS_FRAME;
 	l3e = pmap_pml3e(pmap, va);
 	if (l3e == NULL || (be64toh(*l3e) & PG_V) == 0)
 		return (NULL);
