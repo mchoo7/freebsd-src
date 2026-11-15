@@ -1032,8 +1032,10 @@ pmap_nofault(pmap_t pmap, vm_offset_t va, vm_prot_t flags)
 		break;
 	}
 
-	if (!atomic_cmpset_long(pte, htobe64(origpte), htobe64(newpte)))
+	if (!atomic_cmpset_long(pte, htobe64(origpte), htobe64(newpte))) {
+		PMAP_UNLOCK(pmap);
 		goto retry;
+	}
 	ptesync();
 	PMAP_UNLOCK(pmap);
 	if (startpte == newpte)
