@@ -188,6 +188,8 @@ ttusync(void)
 						 * Invalidate a range of translations
 						 */
 
+static bool radix_tlbie_full_flush;
+
 static __always_inline void
 radix_tlbie(uint8_t ric, uint8_t prs, uint16_t is, uint32_t pid, uint32_t lpid,
 			vm_offset_t va, uint16_t ap)
@@ -1125,10 +1127,18 @@ pmap_invalidate_pwc(pmap_t pmap)
 static void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t start, vm_offset_t end)
 {
-	if (((start - end) >> PAGE_SHIFT) > 8) {
+	if (start == end)
+		return;
+
+	/*
+	 * Preserve POWER9's existing full-flush policy: enabling the current
+	 * per-page invalidation loop has been reported to regress performance.
+	 */
+	if (radix_tlbie_full_flush || ((end - start) >> PAGE_SHIFT) > 8) {
 		pmap_invalidate_all(pmap);
 		return;
 	}
+
 	ptesync();
 	if (pmap == kernel_pmap) {
 		while (start < end) {
@@ -2359,6 +2369,10 @@ static void
 mmu_radix_bootstrap(vm_offset_t start, vm_offset_t end)
 {
 	uint64_t lpcr;
+	uint16_t vers;
+
+	vers = mfpvr() >> 16;
+	radix_tlbie_full_flush = vers == IBMPOWER9;
 
 	if (bootverbose)
 		printf("%s\n", __func__);
