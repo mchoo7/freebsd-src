@@ -189,6 +189,7 @@ ttusync(void)
 						 */
 
 static bool radix_tlbie_full_flush;
+static bool radix_tlbie_need_fixup;
 
 static __always_inline void
 radix_tlbie(uint8_t ric, uint8_t prs, uint16_t is, uint32_t pid, uint32_t lpid,
@@ -207,6 +208,9 @@ radix_tlbie(uint8_t ric, uint8_t prs, uint16_t is, uint32_t pid, uint32_t lpid,
 static __inline void
 radix_tlbie_fixup(uint32_t pid, vm_offset_t va, int ap)
 {
+
+	if (!radix_tlbie_need_fixup)
+		return;
 
 	__asm __volatile("ptesync" ::: "memory");
 	radix_tlbie(TLBIE_RIC_INVALIDATE_TLB, TLBIE_PRS_PROCESS_SCOPE,
@@ -2373,6 +2377,7 @@ mmu_radix_bootstrap(vm_offset_t start, vm_offset_t end)
 
 	vers = mfpvr() >> 16;
 	radix_tlbie_full_flush = vers == IBMPOWER9;
+	radix_tlbie_need_fixup = vers == IBMPOWER9;
 
 	if (bootverbose)
 		printf("%s\n", __func__);
